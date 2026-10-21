@@ -1,0 +1,1 @@
+Place shared auth/session state here once the auth API contract and token lifecycle are implemented. Avoid storing long-lived refresh tokens in localStorage. Decide cookie-based refresh/session handling with the backend before implementing this context.

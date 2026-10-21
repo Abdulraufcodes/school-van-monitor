@@ -1,0 +1,40 @@
+name: Feature
+description: Propose a project feature
+title: "[FEATURE] "
+labels: ["feature"]
+body:
+  - type: textarea
+    id: user-story
+    attributes:
+      label: User story
+      description: As a [role], I want [goal], so that [benefit].
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: List observable outcomes, including failure/permission cases.
+    validations:
+      required: true
+  - type: textarea
+    id: contract
+    attributes:
+      label: API / data / socket contract
+      description: Method, path, role, request, response, data changes and event names.
+    validations:
+      required: true
+  - type: textarea
+    id: files
+    attributes:
+      label: Expected files
+      description: Which modules/files are likely to change?
+    validations:
+      required: false
+  - type: textarea
+    id: tests
+    attributes:
+      label: Test plan
+      description: Success, validation, auth, ownership and edge cases.
+    validations:
+      required: true

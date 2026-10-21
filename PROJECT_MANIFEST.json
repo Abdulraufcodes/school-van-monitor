@@ -1,0 +1,7 @@
+{
+  "project": "School Van Monitoring System",
+  "architecture": "EasyGuard-style feature modules",
+  "file_count": 61,
+  "reference_feature": "POST /api/vans/:vanId/location",
+  "status": "starter scaffold; not all product features are implemented"
+}
