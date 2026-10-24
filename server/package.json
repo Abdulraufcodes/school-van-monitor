@@ -4,12 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "seed:admin": "node scripts/seed-school-admin.js",
     "dev": "nodemon server.js",
     "start": "node server.js",
     "test": "node --test",
     "lint": "echo \"Configure ESLint for this repository\""
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
