@@ -15,7 +15,25 @@ Trip 1 ── * StudentEvent
 Student 1 ── * StudentEvent
 ```
 
-## Entity fields
+## Entity 
+
+### School
+
+Represents a school registered on the School Van Monitoring System.
+
+| Field | Type | Rules |
+|---|---|---|
+| _id | ObjectId | Primary identifier |
+| name | String | Required, trimmed, 2–150 characters |
+| email | String | Optional, lowercase, trimmed |
+| isActive | Boolean | Required, defaults to true |
+| createdAt | Date | Automatically managed by Mongoose |
+| updatedAt | Date | Automatically managed by Mongoose |
+
+Relationships:
+- One School has many Users through User.schoolId.
+- One School has many Students through Student.schoolId.
+- A school admin manages records belonging to their own school.
 
 ### User (planned)
 - `_id`
