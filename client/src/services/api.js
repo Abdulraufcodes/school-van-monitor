@@ -6,5 +6,19 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' }
 });
 
-// Authentication/session integration is intentionally not added yet.
-// Add a single documented token strategy when the auth module is implemented.
+// Access tokens remain in memory only; the backend does not yet define refresh or
+// persistent session handling.
+let accessToken = null;
+
+export function setAccessToken(token) {
+  accessToken = token || null;
+}
+
+api.interceptors.request.use((config) => {
+  if (accessToken) {
+    config.headers.Authorization = `Bearer ${accessToken}`;
+  } else {
+    delete config.headers.Authorization;
+  }
+  return config;
+});
