@@ -1,10 +1,11 @@
+
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
-import User from './auth.model.js';
+import User from './User.model.js';
 import { AppError } from '../../src/utils/AppError.js';
 
-export async function loginAdmin({ email, password }) {
+export async function loginUser({ email, password }) {
   const user = await User.findOne({ email }).select('+passwordHash');
 
   // Use the same response for unknown emails and incorrect passwords.
@@ -21,14 +22,6 @@ export async function loginAdmin({ email, password }) {
       401,
       'INVALID_CREDENTIALS',
       'Invalid email or password'
-    );
-  }
-
-  if (user.role !== 'admin') {
-    throw new AppError(
-      403,
-      'FORBIDDEN',
-      'Admin access required'
     );
   }
 
