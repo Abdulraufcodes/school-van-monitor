@@ -1,9 +1,9 @@
 import { success } from '../../src/utils/response.js';
-import { loginAdmin } from './auth.service.js';
+import { loginUser } from './auth.service.js';
 
-export async function loginAdminController(req, res, next) {
+export async function loginController(req, res, next) {
   try {
-    const result = await loginAdmin(req.validated.body);
+    const result = await loginUser(req.validated.body);
 
     return success(res, result, 'Login successful');
   } catch (error) {
