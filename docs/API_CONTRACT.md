@@ -37,6 +37,82 @@ No auth. Returns `{ "success": true, "message": "API is healthy", "data": { "sta
 ### `POST /vans/:vanId/location`
 Driver-only; requires driver assignment and active trip. See `REFERENCE_FEATURE.md`.
 
+
+### `GET /vans`
+Admin-only. Requires a valid active school association.
+
+Returns only vans belonging to the authenticated admin's school.
+
+Success: `200`
+
+### `POST /vans`
+Admin-only. Requires a valid active school association.
+
+Request body:
+- `registrationNumber`: required string, 1–20 characters
+- `assignedDriver`: required MongoDB ObjectId of an active driver in the same school
+
+The server determines `schoolId` from the authenticated admin's school context. Client-supplied `schoolId` is rejected.
+
+Success: `201`
+
+Errors:
+- `400 VALIDATION_ERROR`: invalid request body
+- `400 INVALID_DRIVER`: assigned driver is not an active driver in the admin's school
+- `401 UNAUTHENTICATED`: missing or invalid authentication
+- `403 FORBIDDEN`: caller is not an admin
+- `403 SCHOOL_ACCESS_DENIED`: school association is missing or unavailable
+- `409 VAN_ALREADY_EXISTS`: registration number already exists
+
+
+### `POST /trips/start`
+
+Driver-only. Starts a trip using an active van assigned to the authenticated driver in the same school.
+
+Request body:
+
+```json
+{
+  "vanId": "VALID_MONGODB_OBJECT_ID"
+}
+```
+
+Success: `201`
+
+Errors:
+- `400 VALIDATION_ERROR`: invalid van ID or request body
+- `401 UNAUTHENTICATED`: missing or invalid token
+- `403 FORBIDDEN`: caller is not a driver
+- `403 SCHOOL_ACCESS_DENIED`: missing valid school association
+- `404 ASSIGNED_VAN_NOT_FOUND`: van is inactive, missing, or not assigned to this driver in their school
+- `409 ACTIVE_TRIP_EXISTS`: driver or van already has an active trip
+
+### `GET /trips/active`
+
+Driver-only. Returns the authenticated driver's active trip.
+
+Success: `200`
+
+When no active trip exists, `data.trip` is `null`.
+
+### `POST /trips/:tripId/end`
+
+Driver-only. Completes an active trip owned by the authenticated driver in their school.
+
+The server sets `endedAt` using server time.
+
+Success: `200`
+
+Errors:
+- `400 VALIDATION_ERROR`: invalid trip ID
+- `401 UNAUTHENTICATED`: missing or invalid token
+- `403 FORBIDDEN`: caller is not a driver
+- `403 SCHOOL_ACCESS_DENIED`: missing valid school association
+- `404 TRIP_NOT_FOUND`: trip does not belong to the authenticated driver and school, or does not exist
+- `409 TRIP_NOT_ACTIVE`: trip has already ended or is no longer active
+
+
+
 ## Planned endpoint contracts (not implemented yet)
 
 These are proposed endpoints to help the team split work. Treat them as design placeholders until implemented and tested.

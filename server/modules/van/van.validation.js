@@ -14,3 +14,24 @@ export const locationUpdateSchema = z.object({
     recordedAt: z.string().datetime({ offset: true }).optional()
   }).strict()
 });
+
+
+export const listVansSchema = z.object({
+  params: z.object({}),
+  query: z.object({}).passthrough(),
+  body: z.object({}).passthrough()
+});
+
+export const createVanSchema = z.object({
+  params: z.object({}),
+  query: z.object({}).passthrough(),
+  body: z.object({
+    registrationNumber: z.string()
+      .trim()
+      .min(1)
+      .max(20)
+      .transform((value) => value.toUpperCase()),
+    assignedDriver: objectId
+  }).strict()
+});
+

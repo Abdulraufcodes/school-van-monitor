@@ -103,3 +103,4 @@ Relationships:
 - Prevent multiple active trips for the same van/driver with a transaction or carefully designed atomic update when production concurrency matters.
 - Add school/tenant scoping to every admin query.
 - Decide retention/deletion rules for GPS history and student records before launch.
+- Every school-owned resource must be queried within the authenticated user's school scope. Trip school ownership must match its van, and driver assignment must be verified independently.

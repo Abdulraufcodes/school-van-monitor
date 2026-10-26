@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 import School from '../modules/school/school.model.js';
-import User from '../modules/auth/auth.model.js';
+import User from '../modules/auth/User.model.js';
 
 async function seedSchoolAdmin() {
   if (process.env.NODE_ENV === 'production') {
