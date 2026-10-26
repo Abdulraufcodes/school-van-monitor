@@ -38,3 +38,15 @@
 ## Test data safety
 
 Use synthetic student names and fake data. Never paste real student records, access tokens or live location traces into issues, screenshots or logs.
+
+
+### Admin van management
+- Admin lists vans and receives only vans from their own school.
+- Admin creates a van with an active driver from the same school.
+- Request containing a client-supplied `schoolId` is rejected.
+- Missing or invalid admin school association is rejected.
+- Inactive, missing, non-driver or cross-school assigned driver is rejected.
+- Duplicate registration number returns 409.
+- Parent cannot list or create vans.
+- Existing assigned-driver GPS update workflow still works.
+
