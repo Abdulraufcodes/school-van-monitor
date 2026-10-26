@@ -26,7 +26,10 @@ export function LoginPage() {
         return;
       }
 
-      signIn(result.data);
+      if (!signIn(result.data)) {
+        setError('Your browser could not save this tab session. Enable session storage and try again.');
+        return;
+      }
       setSignedInUser(result.data.user);
       navigate('/dashboard', { replace: true });
     } catch (requestError) {
@@ -72,7 +75,7 @@ export function LoginPage() {
             <div className="mt-8 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-5" role="status">
               <h3 className="font-semibold text-emerald-200">You’re signed in</h3>
               <p className="mt-2 text-sm text-slate-200">Welcome, {signedInUser.name}.</p>
-              <p className="mt-1 text-sm text-slate-400">Your access token is held in memory for this page only. A dashboard and session handling are not configured yet.</p>
+              <p className="mt-1 text-sm text-slate-400">Your admin session lasts for this browser tab and ends when you sign out or the access token expires.</p>
             </div>
           ) : (
             <form className="mt-8 space-y-5" onSubmit={handleSubmit}>

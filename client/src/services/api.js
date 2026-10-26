@@ -6,12 +6,16 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' }
 });
 
-// Access tokens remain in memory only; the backend does not yet define refresh or
-// persistent session handling.
+// Keep the current token in memory as the request interceptor's source of truth.
 let accessToken = null;
+let authFailureHandler = null;
 
 export function setAccessToken(token) {
   accessToken = token || null;
+}
+
+export function setAuthFailureHandler(handler) {
+  authFailureHandler = handler;
 }
 
 api.interceptors.request.use((config) => {
@@ -22,3 +26,14 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && error.config?.headers?.Authorization) {
+      setAccessToken(null);
+      authFailureHandler?.();
+    }
+    return Promise.reject(error);
+  }
+);
