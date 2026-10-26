@@ -3,32 +3,42 @@ import { setAccessToken, setAuthFailureHandler } from '../services/api.js';
 
 const AuthContext = createContext(null);
 const SESSION_KEY = 'schoolVanAdminSession';
+const supportedRoles = new Set(['admin', 'driver', 'parent']);
 
-function isValidAdminUser(user) {
+function isValidUser(user) {
   return Boolean(
     user &&
     typeof user.id === 'string' &&
     typeof user.name === 'string' &&
     typeof user.email === 'string' &&
-    user.role === 'admin'
+    supportedRoles.has(user.role)
   );
 }
 
-function getJwtExpiry(token) {
+function getJwtClaims(token) {
   try {
     const payloadPart = token.split('.')[1];
     if (!payloadPart) return null;
     const base64 = payloadPart.replace(/-/g, '+').replace(/_/g, '/');
-    const payload = JSON.parse(window.atob(base64));
-    return typeof payload.exp === 'number' ? payload.exp * 1000 : null;
+    return JSON.parse(window.atob(base64));
   } catch {
     return null;
   }
 }
 
 function isUnexpiredJwt(token) {
-  const expiresAt = getJwtExpiry(token);
-  return expiresAt !== null && expiresAt > Date.now();
+  const claims = getJwtClaims(token);
+  return typeof claims?.exp === 'number' && claims.exp * 1000 > Date.now();
+}
+
+function isValidSession(token, user) {
+  const claims = getJwtClaims(token);
+  return Boolean(
+    typeof token === 'string' &&
+    isValidUser(user) &&
+    claims?.role === user.role &&
+    isUnexpiredJwt(token)
+  );
 }
 
 export function AuthProvider({ children }) {
@@ -53,7 +63,7 @@ export function AuthProvider({ children }) {
         const token = storedSession?.accessToken;
         const user = storedSession?.user;
 
-        if (typeof token === 'string' && isValidAdminUser(user) && isUnexpiredJwt(token)) {
+        if (isValidSession(token, user)) {
           setAccessToken(token);
           setSession({ accessToken: token, user });
         } else {
@@ -80,7 +90,8 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (!session?.accessToken) return undefined;
-    const expiresAt = getJwtExpiry(session.accessToken);
+    const claims = getJwtClaims(session.accessToken);
+    const expiresAt = typeof claims?.exp === 'number' ? claims.exp * 1000 : null;
     if (!expiresAt) {
       clearSession();
       return undefined;
@@ -90,7 +101,7 @@ export function AuthProvider({ children }) {
   }, [session, clearSession]);
 
   function signIn({ accessToken, user }) {
-    if (typeof accessToken !== 'string' || !isValidAdminUser(user) || !isUnexpiredJwt(accessToken)) {
+    if (!isValidSession(accessToken, user)) {
       clearSession();
       return false;
     }

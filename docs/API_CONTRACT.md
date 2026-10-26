@@ -34,6 +34,9 @@ This document is the cross-team agreement. Change it in the same PR as API behav
 ### `GET /health`
 No auth. Returns `{ "success": true, "message": "API is healthy", "data": { "status": "ok" } }`.
 
+### `POST /auth/login`
+Public login for existing active `admin`, `driver`, and `parent` User accounts. Request body is `{ "email": "...", "password": "..." }`; clients do not submit a role. The server derives the role from the matched database account and signs it into the access token. Invalid credentials and inactive accounts return HTTP 401 using the standard error envelope. On success, the existing response envelope is preserved with `data.accessToken` and `data.user` (`id`, `name`, `email`, `role`, and nullable `schoolId`). The access token expires after 15 minutes.
+
 ### `POST /vans/:vanId/location`
 Driver-only; requires driver assignment and active trip. See `REFERENCE_FEATURE.md`.
 
@@ -44,7 +47,6 @@ These are proposed endpoints to help the team split work. Treat them as design p
 | Method | Path | Role | Purpose |
 |---|---|---|---|
 | POST | `/auth/register` | Admin / invitation flow | Create account under controlled onboarding |
-| POST | `/auth/login` | Public | Issue access token |
 | POST | `/auth/refresh` | Authenticated session / refresh token | Rotate session tokens |
 | POST | `/auth/logout` | Authenticated | Revoke session |
 | GET | `/auth/me` | Any authenticated user | Current user profile |

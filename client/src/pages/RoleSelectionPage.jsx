@@ -2,8 +2,8 @@ import { Link } from 'react-router-dom';
 
 const options = [
   { title: 'Admin', subtitle: 'School Administrator', description: 'Manage school transport operations and access the admin dashboard.', available: true, icon: '▦' },
-  { title: 'Parent', subtitle: 'Family access', description: 'Parent accounts and student journey views are not available yet.', available: false, icon: '♡' },
-  { title: 'Driver', subtitle: 'Driver access', description: 'Driver sign-in and trip tools are not available yet.', available: false, icon: '↗' }
+  { title: 'Parent', subtitle: 'Family access', description: 'Sign in with your parent account to open the parent dashboard.', available: true, icon: '♡' },
+  { title: 'Driver', subtitle: 'Driver access', description: 'Sign in with your driver account to open the driver dashboard.', available: true, icon: '↗' }
 ];
 
 export function RoleSelectionPage() {
@@ -19,15 +19,11 @@ export function RoleSelectionPage() {
           const content = <>
             <div className="flex items-start justify-between"><span className={`grid h-12 w-12 place-items-center rounded-2xl text-2xl ${option.available ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-400'}`} aria-hidden="true">{option.icon}</span><span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${option.available ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'}`}>{option.available ? 'Available' : 'Coming soon'}</span></div>
             <h2 className="mt-6 text-xl font-bold">{option.title}</h2><p className={`mt-1 text-xs font-semibold uppercase tracking-wider ${option.available ? 'text-blue-700' : 'text-slate-400'}`}>{option.subtitle}</p><p className="mt-4 min-h-[72px] text-sm leading-6 text-slate-600">{option.description}</p>
-            <span className={`mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold ${option.available ? 'bg-blue-600 text-white group-hover:bg-blue-700' : 'bg-slate-100 text-slate-400'}`}>{option.available ? 'Continue as Admin' : 'Not available yet'}{option.available && <span aria-hidden="true">→</span>}</span>
+            <span className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white group-hover:bg-blue-700">Continue to sign in<span aria-hidden="true">→</span></span>
           </>;
-          return option.available ? (
-            <Link key={option.title} to="/login" className="group rounded-2xl border border-blue-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-blue-400 hover:shadow-xl hover:shadow-blue-900/10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">{content}</Link>
-          ) : (
-            <article key={option.title} aria-label={`${option.title}, coming soon`} className="cursor-not-allowed rounded-2xl border border-slate-200 bg-white/80 p-6 opacity-80 shadow-sm">{content}</article>
-          );
+          return <Link key={option.title} to="/login" className="group rounded-2xl border border-blue-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-blue-400 hover:shadow-xl hover:shadow-blue-900/10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">{content}</Link>;
         })}</div>
-        <p className="mt-8 text-center text-xs text-slate-500">Admin sign-in is available. Parent and Driver access will be announced when those workflows are ready.</p>
+        <p className="mt-8 text-center text-xs text-slate-500">Your account role is assigned by the system. Choosing a card does not change your role.</p>
       </section>
     </main>
   );

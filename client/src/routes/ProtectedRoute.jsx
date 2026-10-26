@@ -1,7 +1,8 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import { getProtectedRouteRedirect } from './roleAccess.js';
 
-export function ProtectedRoute() {
+export function ProtectedRoute({ allowedRoles = ['admin'] }) {
   const { isAuthenticated, isInitializing, user } = useAuth();
   if (isInitializing) {
     return (
@@ -13,7 +14,6 @@ export function ProtectedRoute() {
       </main>
     );
   }
-  return isAuthenticated && user?.role === 'admin'
-    ? <Outlet />
-    : <Navigate to="/login" replace />;
+  const redirectTo = getProtectedRouteRedirect(user, isAuthenticated, allowedRoles);
+  return redirectTo ? <Navigate to={redirectTo} replace /> : <Outlet />;
 }

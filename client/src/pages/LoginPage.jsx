@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getLoginErrorMessage, login } from '../services/auth.service.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { getRoleHomePath } from '../routes/roleAccess.js';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -26,12 +27,18 @@ export function LoginPage() {
         return;
       }
 
+      const destination = getRoleHomePath(result.data.user.role);
+      if (!destination) {
+        setError('This account role is not supported. Please contact your administrator.');
+        return;
+      }
+
       if (!signIn(result.data)) {
-        setError('Your browser could not save this tab session. Enable session storage and try again.');
+        setError('A valid session could not be established. Enable session storage and sign in again.');
         return;
       }
       setSignedInUser(result.data.user);
-      navigate('/dashboard', { replace: true });
+      navigate(destination, { replace: true });
     } catch (requestError) {
       setError(getLoginErrorMessage(requestError));
     } finally {
@@ -58,7 +65,7 @@ export function LoginPage() {
             <h1 className="mt-4 max-w-sm text-3xl font-semibold leading-tight tracking-tight lg:text-4xl">A clearer view of every school journey.</h1>
             <p className="mt-5 max-w-sm leading-7 text-slate-300">Sign in to manage your school’s transport operations and keep daily trips in view.</p>
           </div>
-          <p className="text-xs text-slate-500">Secure access for School Administrators</p>
+          <p className="text-xs text-slate-500">Secure access for school administrators, drivers, and parents</p>
         </div>
 
         <div className="p-6 sm:p-10 lg:p-14">
@@ -66,7 +73,7 @@ export function LoginPage() {
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300">School Van Monitor</p>
           </div>
           <div>
-            <p className="text-sm font-medium text-cyan-300">School Admin</p>
+            <p className="text-sm font-medium text-cyan-300">Secure sign-in</p>
             <h2 className="mt-2 text-3xl font-semibold tracking-tight">Welcome back</h2>
             <p className="mt-2 text-sm leading-6 text-slate-400">Enter your account details to continue.</p>
           </div>
@@ -75,7 +82,7 @@ export function LoginPage() {
             <div className="mt-8 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-5" role="status">
               <h3 className="font-semibold text-emerald-200">You’re signed in</h3>
               <p className="mt-2 text-sm text-slate-200">Welcome, {signedInUser.name}.</p>
-              <p className="mt-1 text-sm text-slate-400">Your admin session lasts for this browser tab and ends when you sign out or the access token expires.</p>
+              <p className="mt-1 text-sm text-slate-400">Your session lasts for this browser tab and ends when you sign out or the access token expires.</p>
             </div>
           ) : (
             <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
@@ -90,7 +97,7 @@ export function LoginPage() {
                   maxLength={254}
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  placeholder="admin@school.edu"
+                  placeholder="you@school.edu"
                   className="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
                 />
               </div>
@@ -132,7 +139,7 @@ export function LoginPage() {
                 {loading && <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950/30 border-t-slate-950" />}
                 {loading ? 'Signing in…' : 'Sign in'}
               </button>
-              <p className="text-center text-xs leading-5 text-slate-500">Administrator access only. Driver and Parent sign-in are not available yet.</p>
+              <p className="text-center text-xs leading-5 text-slate-500">Your dashboard is selected from the role assigned to your account.</p>
             </form>
           )}
 

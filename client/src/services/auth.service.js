@@ -16,7 +16,7 @@ export function getLoginErrorMessage(error) {
     return 'The email or password is incorrect, or this account is inactive.';
   }
   if (status === 403) {
-    return 'This account does not have School Admin access.';
+    return apiMessage || 'This account is not authorized to access this resource.';
   }
   if (error.response) {
     return status >= 500
