@@ -5,6 +5,11 @@ export async function login({ email, password }) {
   return response.data;
 }
 
+export async function getCurrentUser() {
+  const response = await api.get('/auth/me');
+  return response.data;
+}
+
 export function getLoginErrorMessage(error) {
   const status = error.response?.status;
   const apiMessage = error.response?.data?.message;
@@ -16,7 +21,7 @@ export function getLoginErrorMessage(error) {
     return 'The email or password is incorrect, or this account is inactive.';
   }
   if (status === 403) {
-    return 'This account does not have School Admin access.';
+    return apiMessage || 'This account is not authorized to access this resource.';
   }
   if (error.response) {
     return status >= 500

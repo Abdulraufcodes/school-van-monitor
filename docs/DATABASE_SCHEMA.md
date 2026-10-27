@@ -55,9 +55,10 @@ Relationships:
 - `isActive`
 - timestamps
 
-### Van (implemented reference)
+### Van (implemented)
 - `_id`
 - `registrationNumber` (unique)
+- `schoolId` (required School ObjectId; indexed for school-scoped access)
 - `assignedDriver` (User ObjectId)
 - `isActive`
 - timestamps
@@ -97,6 +98,7 @@ Relationships:
 
 - Unique normalized user email.
 - Unique van registration number.
+- Index van records by school for tenant-scoped queries.
 - `LocationUpdate`: compound index `{ tripId: 1, receivedAt: -1 }`.
 - `StudentEvent`: indexes on `{ studentId: 1, occurredAt: -1 }` and `{ tripId: 1, occurredAt: -1 }`.
 - Validate state transitions in service logic.

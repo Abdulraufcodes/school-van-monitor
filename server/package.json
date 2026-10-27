@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "seed:admin": "node scripts/seed-school-admin.js",
+    "seed:dev": "node scripts/seed-dev-workflow.js",
     "dev": "nodemon server.js",
     "start": "node server.js",
     "test": "node --test",
+    "test:seed:db": "node --test db-tests/seed-dev-workflow.integration.js",
     "lint": "echo \"Configure ESLint for this repository\""
   },
   "dependencies": {
