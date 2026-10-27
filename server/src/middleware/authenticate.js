@@ -64,6 +64,8 @@ export async function authenticate(req, _res, next) {
 
     req.user = {
       id: String(user._id),
+      name: user.name,
+      email: user.email,
       role: user.role,
       schoolId: user.schoolId ? String(user.schoolId) : null
     };
