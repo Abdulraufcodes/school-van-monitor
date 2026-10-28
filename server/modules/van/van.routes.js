@@ -1,10 +1,10 @@
 import { Router } from 'express';
-
 import { authenticate } from '../../src/middleware/authenticate.js';
 import { authorize } from '../../src/middleware/authorize.js';
 import { requireAdminSchool } from '../../src/middleware/requireAdminSchool.js';
 import { validate } from '../../src/middleware/validate.js';
-
+// Middleware that limits how frequently each driver can submit GPS updates.
+import { gpsRateLimit } from '../../src/middleware/gpsRateLimit.js';
 import {postVanLocation,getSchoolVansController, createSchoolVanController} from './van.controller.js';
 
 import {
@@ -35,11 +35,13 @@ vanRouter.post(
   createSchoolVanController
 );
 
-// Driver: submit a GPS location during an assigned active trip.
+// Drivers must be authenticated and authorized before rate limiting.
+// Validate the payload before the controller saves the GPS location.
 vanRouter.post(
   '/:vanId/location',
   authenticate,
   authorize('driver'),
+  gpsRateLimit,
   validate(locationUpdateSchema),
   postVanLocation
 );
