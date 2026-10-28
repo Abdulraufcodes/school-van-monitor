@@ -5,14 +5,7 @@ import { Trip } from '../trip/trip.model.js';
 import { LocationUpdate } from '../location/location.model.js';
 import { AppError } from '../../src/utils/AppError.js';
 
-export async function updateVanLocation({
-  vanId,
-  driverId,
-  driverSchoolId,
-  latitude,
-  longitude,
-  recordedAt
-}) {
+export async function updateVanLocation({ vanId, driverId, driverSchoolId, latitude, longitude, recordedAt }) {
   if (
     !driverSchoolId ||
     !mongoose.isValidObjectId(driverSchoolId)
@@ -67,15 +60,60 @@ export async function updateVanLocation({
     );
   }
 
+  // Record when the server received this GPS update.
   const receivedAt = new Date();
 
+  // Use the timestamp sent by the driver's device.
+  // If the device doesn't send one, fall back to server time.
+  const effectiveRecordedAt = recordedAt
+    ? new Date(recordedAt)
+    : receivedAt;
+
+  // Reject timestamps more than 30 seconds ahead of server time.
+  // This allows small differences between the device and server clocks.
+  if (
+    effectiveRecordedAt.getTime() >
+    receivedAt.getTime() + 30_000
+  ) {
+    throw new AppError(
+      400,
+      'INVALID_LOCATION_TIMESTAMP',
+      'Location timestamp cannot be in the future'
+    );
+  }
+
+  // Find the newest GPS location already saved for this trip.
+  // Sorting by -1 puts the latest recordedAt timestamp first.
+  // Selecting only recordedAt avoids fetching unnecessary fields.
+  const latestLocation = await LocationUpdate.findOne({
+    tripId: trip._id
+  })
+    .sort({ recordedAt: -1 })
+    .select('recordedAt')
+    .lean();
+
+  // Reject duplicate or out-of-order GPS updates.
+  // Each accepted update must have a timestamp newer than the last one.
+  if (
+    latestLocation &&
+    effectiveRecordedAt.getTime() <=
+    new Date(latestLocation.recordedAt).getTime()
+  ) {
+    throw new AppError(
+      409,
+      'STALE_LOCATION_UPDATE',
+      'Location timestamp must be newer than the latest recorded location'
+    );
+  }
+
+  // Save the GPS update only after the timestamp checks pass.
   const location = await LocationUpdate.create({
     vanId: van._id,
     tripId: trip._id,
     driverId,
     latitude,
     longitude,
-    recordedAt: recordedAt ? new Date(recordedAt) : receivedAt,
+    recordedAt: effectiveRecordedAt,
     receivedAt
   });
 
