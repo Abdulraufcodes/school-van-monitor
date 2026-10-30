@@ -4,6 +4,7 @@ import { Van } from './van.model.js';
 import { Trip } from '../trip/trip.model.js';
 import { LocationUpdate } from '../location/location.model.js';
 import { AppError } from '../../src/utils/AppError.js';
+import { emitTripLocationUpdate } from '../../src/sockets/socketServer.js';
 
 export async function updateVanLocation({ vanId, driverId, driverSchoolId, latitude, longitude, recordedAt }) {
   if (
@@ -117,7 +118,7 @@ export async function updateVanLocation({ vanId, driverId, driverSchoolId, latit
     receivedAt
   });
 
-  return {
+  const locationData = {
     vanId: String(van._id),
     tripId: String(trip._id),
     latitude: location.latitude,
@@ -125,6 +126,11 @@ export async function updateVanLocation({ vanId, driverId, driverSchoolId, latit
     recordedAt: location.recordedAt.toISOString(),
     receivedAt: location.receivedAt.toISOString()
   };
+
+  // Only broadcast after MongoDB successfully saves the update.
+  emitTripLocationUpdate(locationData);
+
+  return locationData;
 }
 
 

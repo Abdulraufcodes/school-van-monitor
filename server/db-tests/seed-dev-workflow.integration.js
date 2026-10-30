@@ -7,6 +7,7 @@ import School from '../modules/school/school.model.js';
 import { Van } from '../modules/van/van.model.js';
 import { runSeedWorkflow } from '../scripts/seed-dev-workflow.js';
 import { connectDedicatedTestDatabase } from '../support/database-guard.js';
+import Student from '../modules/student/student.model.js';
 
 const previousPassword = process.env.DEV_DEMO_PASSWORD;
 const testPassword = 'integration-test-password-only';
@@ -40,7 +41,12 @@ function makeFixture(label) {
 }
 
 function countRecords() {
-  return Promise.all([School.countDocuments(), User.countDocuments(), Van.countDocuments()]);
+  return Promise.all([
+    School.countDocuments(),
+    User.countDocuments(),
+    Van.countDocuments(),
+    Student.countDocuments()
+  ]);
 }
 
 function recordCreated(ids, kind, document) {
@@ -48,14 +54,30 @@ function recordCreated(ids, kind, document) {
 }
 
 async function removeOwned(ids) {
-  const [schoolIds, userIds, vanIds] = [ids.school, ids.user, ids.van];
-  if (vanIds.length) await Van.deleteMany({ _id: { $in: vanIds } });
-  if (userIds.length) await User.deleteMany({ _id: { $in: userIds } });
-  if (schoolIds.length) await School.deleteMany({ _id: { $in: schoolIds } });
+  if (ids.student.length) {
+    await Student.deleteMany({ _id: { $in: ids.student } });
+  }
+
+  if (ids.van.length) {
+    await Van.deleteMany({ _id: { $in: ids.van } });
+  }
+
+  if (ids.user.length) {
+    await User.deleteMany({ _id: { $in: ids.user } });
+  }
+
+  if (ids.school.length) {
+    await School.deleteMany({ _id: { $in: ids.school } });
+  }
 }
 
 function idsForRun() {
-  return { school: [], user: [], van: [] };
+  return {
+    school: [],
+    user: [],
+    van: [],
+    student: []
+  };
 }
 
 function captureWrites(ids, failAt) {
@@ -98,7 +120,7 @@ test('seed reruns preserve school, user, and van counts', async (t) => {
   const second = await runSeedWorkflow({ ...config, afterWrite: captureWrites(ids) });
   const afterSecond = await countRecords();
 
-  assert.deepEqual(afterFirst.map((count, index) => count - baseline[index]), [1, 7, 3]);
+  assert.deepEqual(afterFirst.map((count, index) => count - baseline[index]), [1, 7, 3, 3]);
   assert.deepEqual(afterSecond, afterFirst);
   assert.equal(first.school._id.toString(), second.school._id.toString());
   assert.deepEqual(first.users.map(({ _id }) => _id.toString()), second.users.map(({ _id }) => _id.toString()));
@@ -126,7 +148,7 @@ test('reused accounts retain IDs, fields, and password hashes', async (t) => {
   }));
 
   for (const prior of expected) assert.deepEqual(after.find(({ id }) => id === prior.id), prior);
-  assert.deepEqual(await countRecords(), [before[0] + 1, before[1] + 7, before[2] + 3]);
+  assert.deepEqual(await countRecords(), [before[0] + 1, before[1] + 7, before[2] + 3, before[3] + 3]);
 });
 
 test('invalid existing van school, driver, active state, or missing school fails before writes', async (t) => {
@@ -143,26 +165,42 @@ test('invalid existing van school, driver, active state, or missing school fails
     if (ids.van.length) await Van.deleteMany({ _id: { $in: ids.van } });
   });
 
-  for (const [label, alter] of cases) {
-    const config = makeFixture(`invalid-${label.replaceAll(' ', '-')}`);
-    const before = await countRecords();
-    const registrationNumber = `${config.vanPrefix}-001`;
-    const van = {
-      registrationNumber,
-      schoolId: new mongoose.Types.ObjectId(),
-      assignedDriver: new mongoose.Types.ObjectId(),
-      isActive: true
-    };
-    alter(van);
-    const created = await Van.collection.insertOne(van);
-    ids.van.push(created.insertedId);
+  
+for (const [label, alter] of cases) {
+  const config = makeFixture(`invalid-${label.replaceAll(' ', '-')}`);
+  const registrationNumber = `${config.vanPrefix}-001`;
 
-    await assert.rejects(runSeedWorkflow({ ...config }), /does not match the expected demo school, driver, and active state/);
-    assert.deepEqual(await countRecords(), before, `no seed writes for ${label}`);
+  const van = {
+    registrationNumber,
+    schoolId: new mongoose.Types.ObjectId(),
+    assignedDriver: new mongoose.Types.ObjectId(),
+    isActive: true
+  };
+
+  alter(van);
+
+  const created = await Van.collection.insertOne(van);
+  ids.van.push(created.insertedId);
+
+  // Take the baseline after inserting the intentionally invalid van.
+  const beforeSeed = await countRecords();
+
+  await assert.rejects(
+    runSeedWorkflow({ ...config }),
+    /does not match the expected demo school, driver, and active state/
+  );
+
+  assert.deepEqual(
+    await countRecords(),
+    beforeSeed,
+    `no seed writes for ${label}`
+  );
   }
 });
 
-for (const failurePoint of ['school', 'user', 'van']) {
+
+
+for (const failurePoint of ['school', 'user', 'van', 'student']) {
   test(`failure after ${failurePoint} write removes only records created by that run`, async (t) => {
     const config = makeFixture(`rollback-${failurePoint}`);
     const ids = idsForRun();
@@ -174,7 +212,7 @@ for (const failurePoint of ['school', 'user', 'van']) {
       new RegExp(`injected failure after ${failurePoint} write`)
     );
     assert.deepEqual(await countRecords(), before);
-    for (const [kind, model] of [['school', School], ['user', User], ['van', Van]]) {
+    for (const [kind, model] of [['school', School], ['user', User], ['van', Van], ['student', Student]]) {
       for (const id of ids[kind]) assert.equal(await model.exists({ _id: id }), null);
     }
   });
@@ -232,6 +270,6 @@ test('concurrent seed invocation is rejected while the first run owns the lock',
   continueFirst();
   const result = await firstRun;
   assert.equal(await School.countDocuments({ email: config.schoolDefinition.email }), 1);
-  assert.deepEqual((await countRecords()).map((count, index) => count - baseline[index]), [1, 7, 3]);
+  assert.deepEqual((await countRecords()).map((count, index) => count - baseline[index]), [1, 7, 3, 3]);
   assert.equal(result.school.email, config.schoolDefinition.email);
 });

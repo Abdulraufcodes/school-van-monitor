@@ -16,6 +16,25 @@ This is the proposed event contract; live parent-room subscription and location 
 - `trip:<tripId>`: only users permitted to see that trip.
 - Room membership must be granted server-side after verifying assignment/parent linkage.
 
+## Parent subscription
+
+Parents request access using:
+
+`trip:subscribe` with `{ tripId }`
+
+The server must verify:
+- The authenticated user is an active parent.
+- The trip is active and belongs to the parent's school.
+- At least one active student is linked to that parent and assigned to the trip's van.
+
+The server acknowledges the request with `{ success: true, tripId }`
+or `{ success: false, code }`.
+
+Authorized subscribers receive `location:updated` only after
+the location record has been persisted successfully.
+
+Clients must not be allowed to join arbitrary rooms.
+
 ## Events
 
 | Direction | Event | Payload |
