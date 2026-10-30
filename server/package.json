@@ -9,7 +9,7 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "test": "node --test",
-    "test:seed:db": "node --test db-tests/seed-dev-workflow.integration.js",
+    "test:seed:db": "node --env-file=.env --test db-tests/seed-dev-workflow.integration.js",
     "lint": "echo \"Configure ESLint for this repository\""
   },
   "dependencies": {
@@ -24,6 +24,7 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.9",
+    "socket.io-client": "^4.8.4",
     "supertest": "^7.0.0"
   }
 }

@@ -8,6 +8,7 @@ import { connectDatabase } from '../src/config/db.js';
 import User from '../modules/auth/User.model.js';
 import School from '../modules/school/school.model.js';
 import { Van } from '../modules/van/van.model.js';
+import Student from '../modules/student/student.model.js';
 
 const demoSchool = {
   name: 'Cedar Grove Community School',
@@ -22,6 +23,24 @@ const demoAccounts = [
   { name: 'Taylor Brooks', email: 'parent1@cedargrove.example', role: 'parent' },
   { name: 'Morgan Diaz', email: 'parent2@cedargrove.example', role: 'parent' },
   { name: 'Jamie Wilson', email: 'parent3@cedargrove.example', role: 'parent' }
+];
+
+const demoStudents = [
+  {
+    name: 'Demo Student One',
+    parentEmail: 'parent1@cedargrove.example',
+    vanNumber: 1
+  },
+  {
+    name: 'Demo Student Two',
+    parentEmail: 'parent2@cedargrove.example',
+    vanNumber: 2
+  },
+  {
+    name: 'Demo Student Three',
+    parentEmail: 'parent3@cedargrove.example',
+    vanNumber: 3
+  }
 ];
 
 export function assertDevelopmentTarget() {
@@ -74,6 +93,27 @@ export function assertExpectedDemoVan(van, { registrationNumber, schoolId, assig
     van.isActive !== true
   ) {
     throw new Error(`Existing van ${registrationNumber} does not match the expected demo school, driver, and active state.`);
+  }
+}
+
+function assertExpectedDemoStudent(
+  student,
+  { schoolId, parentId, assignedVanId }
+) {
+  const linkedToExpectedParent = Array.isArray(student?.parentIds) &&
+    student.parentIds.some((id) => String(id) === String(parentId));
+
+  if (
+    !student ||
+    String(student.schoolId) !== String(schoolId) ||
+    !linkedToExpectedParent ||
+    String(student.assignedVanId) !== String(assignedVanId) ||
+    student.isActive !== true
+  ) {
+    throw new Error(
+      `Existing demo student ${student?.name ?? '(unknown)'} ` +
+      'does not match the expected school, parent, van, and active state.'
+    );
   }
 }
 
@@ -139,6 +179,51 @@ async function planDemoVans(drivers, schoolId, vanPrefix) {
   return plans;
 }
 
+async function planDemoStudents(parents, vans, schoolId) {
+  if (parents.length > vans.length) {
+    throw new Error(
+      'Every seeded parent needs a corresponding demo van for student setup.'
+    );
+  }
+
+  const plans = [];
+
+  for (const [index, parent] of parents.entries()) {
+    const van = vans[index];
+    const name = `Demo Student ${index + 1}`;
+
+    const expected = {
+      schoolId,
+      parentId: parent._id,
+      assignedVanId: van._id
+    };
+
+    const existing = await Student.findOne({
+      schoolId,
+      name
+    });
+
+    if (existing) {
+      assertExpectedDemoStudent(existing, expected);
+      plans.push({ student: existing, created: false });
+      continue;
+    }
+
+    plans.push({
+      student: new Student({
+        schoolId,
+        name,
+        parentIds: [parent._id],
+        assignedVanId: van._id,
+        isActive: true
+      }),
+      created: true
+    });
+  }
+
+  return plans;
+}
+
 async function rollbackCreatedRecords(created) {
   const failures = [];
   for (const { model, document, identity } of [...created].reverse()) {
@@ -178,7 +263,7 @@ export async function runSeedWorkflow({
   schoolDefinition = demoSchool,
   accounts = demoAccounts,
   vanPrefix = 'CG-DEMO',
-  afterWrite = async () => {}
+  afterWrite = async () => { }
 } = {}) {
   const releaseLock = await acquireSeedLock();
 
@@ -191,6 +276,16 @@ export async function runSeedWorkflow({
       .filter(({ user }) => user.role === 'driver')
       .map(({ user }) => user);
     const vanPlans = await planDemoVans(driverUsers, school._id, vanPrefix);
+
+    const parentUsers = userPlans
+      .filter(({ user }) => user.role === 'parent')
+      .map(({ user }) => user);
+
+    const studentPlans = await planDemoStudents(
+      parentUsers,
+      vanPlans.map(({ van }) => van),
+      school._id
+    );
 
     // Validate the full intended set before the first write. MongoDB standalone
     // development servers do not support multi-document transactions, so on a
@@ -221,10 +316,42 @@ export async function runSeedWorkflow({
       }
     }
 
-    console.log(`${schoolCreated ? 'Created' : 'Reused'} demo school: ${school.name}`);
-    console.log(`Development seed complete: 1 school, ${userPlans.length} users, ${vansCreated} new vans.`);
+    let studentsCreated = 0;
+
+    for (const plan of studentPlans) {
+      if (plan.created) {
+        created.push({
+          model: Student,
+          document: plan.student,
+          identity: {
+            schoolId: plan.student.schoolId,
+            name: plan.student.name
+          }
+        });
+
+        await plan.student.save();
+
+        await afterWrite({
+          kind: 'student',
+          document: plan.student
+        });
+
+        studentsCreated += 1;
+      }
+    }
+
+    console.log(
+      `Development seed complete: 1 school, ${userPlans.length} users, ` +
+      `${vanPlans.filter(({ created }) => created).length} new vans, ` +
+      `${studentsCreated} new students.`
+    );
     console.log('Existing accounts and vans were not overwritten.');
-    return { school, users: userPlans.map(({ user }) => user), vans: vanPlans.map(({ van }) => van) };
+    return {
+      school,
+      users: userPlans.map(({ user }) => user),
+      vans: vanPlans.map(({ van }) => van),
+      students: studentPlans.map(({ student }) => student)
+    };
   } catch (error) {
     try {
       await rollbackCreatedRecords(created);
@@ -251,6 +378,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       process.exitCode = 1;
     })
     .finally(async () => {
-      await mongoose.disconnect().catch(() => {});
+      await mongoose.disconnect().catch(() => { });
     });
 }

@@ -49,6 +49,18 @@ test('location update records against the authenticated school trip', async (t) 
     tripFilter = filter;
     return { sort() { return this; }, lean: async () => ({ _id: '507f1f77bcf86cd799439014' }) };
   });
+
+  // No previous location exists for this trip.
+  t.mock.method(LocationUpdate, 'findOne', () => ({
+    sort() {
+      return this;
+    },
+    select() {
+      return this;
+    },
+    lean: async () => null
+  }));
+  
   t.mock.method(LocationUpdate, 'create', async (input) => {
     locationInput = input;
     return { ...input };
