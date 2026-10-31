@@ -126,3 +126,10 @@ Agree on the API contract and schema before splitting frontend/backend tasks. Ea
 - Copy `.env.example` to `.env`.
 - `.env` is ignored by Git. Never commit real credentials, JWT secrets, database URLs, or API keys.
 - If a real secret was ever committed, rotate it; deleting it from the latest commit alone is not enough.
+
+## Project Documentation
+
+- [Backend Development Roadmap](docs/BACKEND_ROADMAP.md)
+- [Testing Plan](docs/TEST_PLAN.md)
+- [Real-time Contract](docs/REALTIME_CONTRACT.md)
+- [Real-time Testing Guide](docs/REALTIME_TESTING.md)
