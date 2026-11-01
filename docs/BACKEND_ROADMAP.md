@@ -129,7 +129,7 @@ Existing protected APIs should continue using centralized authentication and aut
 ## Phase 1 — Backend Foundation and Verification
 
 **Priority:** High  
-**Status:** Existing implementation; verification and fixes required.
+**Status:** Completed.
 
 ### Objective
 
@@ -199,7 +199,7 @@ Existing backend functionality passes its relevant tests and can safely support 
 ## Phase 2 — Student Pickup and Drop-off Management
 
 **Priority:** Critical  
-**Status:** Pending implementation.
+**Status:** Completed.
 
 ### Objective
 
@@ -284,7 +284,7 @@ A complete pickup and drop-off workflow works through the backend, with accurate
 ## Phase 3 — Live Van Tracking Integration
 
 **Priority:** Critical  
-**Status:** Core GPS and Socket.IO functionality implemented; integration improvements pending.
+**Status:** Completed.
 
 ### Objective
 

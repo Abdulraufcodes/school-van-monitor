@@ -5,7 +5,7 @@ import { Van } from '../van/van.model.js';
 import { LocationUpdate } from '../location/location.model.js';
 import User from '../auth/User.model.js';
 import Student from '../student/student.model.js';
-
+import { emitTripStatusUpdate } from '../../src/sockets/socketServer.js';
 import { AppError } from '../../src/utils/AppError.js';
 
 // -----------------------------------------------------------------------------
@@ -195,7 +195,13 @@ export async function endTrip({ tripId, driverId, schoolId }) {
     );
   }
 
-  return serializeTrip(completedTrip);
+  // Convert the completed trip into the public response format.
+  const result = serializeTrip(completedTrip);
+
+  // Notify all authorized parents currently tracking this trip.
+  emitTripStatusUpdate(result);
+
+  return result;
 }
 
 // -----------------------------------------------------------------------------
@@ -210,8 +216,7 @@ export async function getLatestTripLocation({
 }) {
   let authorizedSchoolId;
 
-  // Only parents and admins are allowed to retrieve trip locations.
-  // Drivers must use the GPS update endpoint, not this read endpoint.
+  // Only parents and admins can retrieve trip locations.
   if (role !== 'parent' && role !== 'admin') {
     throw new AppError(
       403,
@@ -221,22 +226,19 @@ export async function getLatestTripLocation({
   }
 
   if (role === 'admin') {
-    // The admin's schoolId must come from the authenticated school context.
-    // The route should run requireAdminSchool before calling this service.
+    // Admin access must be restricted to their verified school.
     requireSchoolId(schoolId);
-
     authorizedSchoolId = schoolId;
   }
 
   if (role === 'parent') {
-    // Reload the parent account from the database.
-    // Never trust school or parent information supplied by the client.
+    // Reload the parent account instead of trusting client-supplied details.
     const parent = await User.findOne({
       _id: userId,
       role: 'parent',
       isActive: true
     })
-      .select('_id schoolId role isActive')
+      .select('_id schoolId')
       .lean();
 
     if (!parent?.schoolId) {
@@ -250,14 +252,13 @@ export async function getLatestTripLocation({
     authorizedSchoolId = parent.schoolId;
   }
 
-  // Only active trips belonging to the authorized school can be viewed.
-  // This also prevents parents from retrieving completed trips.
+  // Only active trips belonging to the authorized school are trackable.
   const trip = await Trip.findOne({
     _id: tripId,
     schoolId: authorizedSchoolId,
     status: 'active'
   })
-    .select('_id schoolId vanId status')
+    .select('_id schoolId vanId driverId status startedAt')
     .lean();
 
   if (!trip) {
@@ -269,10 +270,7 @@ export async function getLatestTripLocation({
   }
 
   if (role === 'parent') {
-    // A parent can view a van only if at least one active student:
-    // 1. Belongs to the same school.
-    // 2. Is linked to this parent.
-    // 3. Is assigned to this trip's van.
+    // A parent must have at least one active child assigned to this van.
     const linkedStudent = await Student.exists({
       schoolId: authorizedSchoolId,
       parentIds: userId,
@@ -289,56 +287,222 @@ export async function getLatestTripLocation({
     }
   }
 
-  // Retrieve the most recently received location update.
-  // receivedAt is server-generated, so it is more reliable for
-  // determining freshness than the driver's device timestamp.
+  // Retrieve the van and driver associated with this trip.
+  const [van, driver] = await Promise.all([
+    Van.findOne({
+      _id: trip.vanId,
+      schoolId: authorizedSchoolId
+    })
+      .select('_id registrationNumber')
+      .lean(),
+
+    User.findOne({
+      _id: trip.driverId,
+      schoolId: authorizedSchoolId,
+      role: 'driver'
+    })
+      .select('_id name')
+      .lean()
+  ]);
+
+  if (!van || !driver) {
+    throw new AppError(
+      404,
+      'TRIP_DETAILS_NOT_FOUND',
+      'Associated van or driver information was not found'
+    );
+  }
+
+  // Get the latest GPS update using the server receipt timestamp.
   const latestLocation = await LocationUpdate.findOne({
     tripId: trip._id
   })
     .sort({ receivedAt: -1 })
     .lean();
 
-  // A trip can be active before its driver sends the first GPS update.
-  // Return null instead of treating this as an error.
-  if (!latestLocation) {
-    return null;
+  // An active trip may not have received its first GPS update yet.
+  // Still return trip information so the tracking screen can render.
+  let location = null;
+
+  if (latestLocation) {
+    const configuredThreshold = Number(
+      process.env.LOCATION_STALE_THRESHOLD_SECONDS ?? 60
+    );
+
+    const staleThresholdSeconds =
+      Number.isFinite(configuredThreshold) &&
+        configuredThreshold >= 0
+        ? configuredThreshold
+        : 60;
+
+    const ageInSeconds = Math.max(
+      0,
+      Math.floor(
+        (Date.now() -
+          new Date(latestLocation.receivedAt).getTime()) / 1000
+      )
+    );
+
+    location = {
+      latitude: latestLocation.latitude,
+      longitude: latestLocation.longitude,
+      recordedAt: latestLocation.recordedAt.toISOString(),
+      receivedAt: latestLocation.receivedAt.toISOString(),
+      ageInSeconds,
+      isStale: ageInSeconds > staleThresholdSeconds
+    };
   }
 
-  // Read the stale-location threshold from environment configuration.
-  // Use 60 seconds if the variable is missing or invalid.
+  return {
+    trip: {
+      id: String(trip._id),
+      status: trip.status,
+      startedAt: trip.startedAt.toISOString()
+    },
+
+    van: {
+      id: String(van._id),
+      registrationNumber: van.registrationNumber
+    },
+
+    driver: {
+      id: String(driver._id),
+      name: driver.name
+    },
+
+    // Null means the trip is active but no GPS update has arrived yet.
+    location
+  };
+}
+
+// Retrieve every active trip and its latest GPS location
+// for the authenticated school administrator.
+export async function getSchoolActiveTripLocations({ schoolId }) {
+  requireSchoolId(schoolId);
+
+  // Only retrieve active trips belonging to this school.
+  const trips = await Trip.find({
+    schoolId,
+    status: 'active'
+  })
+    .sort({ startedAt: -1 })
+    .lean();
+
+  if (!trips.length) {
+    return [];
+  }
+
+  const tripIds = trips.map((trip) => trip._id);
+  const vanIds = trips.map((trip) => trip.vanId);
+  const driverIds = trips.map((trip) => trip.driverId);
+
+  // Fetch related records in bulk instead of making separate
+  // database queries for every trip.
+  const [vans, drivers, locations] = await Promise.all([
+    Van.find({
+      _id: { $in: vanIds },
+      schoolId
+    })
+      .select('_id registrationNumber isActive')
+      .lean(),
+
+    User.find({
+      _id: { $in: driverIds },
+      schoolId,
+      role: 'driver'
+    })
+      .select('_id name isActive')
+      .lean(),
+
+    LocationUpdate.find({
+      tripId: { $in: tripIds }
+    })
+      .sort({ receivedAt: -1 })
+      .lean()
+  ]);
+
+  // Create lookup maps for efficient association.
+  const vanMap = new Map(
+    vans.map((van) => [String(van._id), van])
+  );
+
+  const driverMap = new Map(
+    drivers.map((driver) => [String(driver._id), driver])
+  );
+
+  // Because locations are sorted newest first, keep only
+  // the first location encountered for each trip.
+  const latestLocationMap = new Map();
+
+  for (const location of locations) {
+    const key = String(location.tripId);
+
+    if (!latestLocationMap.has(key)) {
+      latestLocationMap.set(key, location);
+    }
+  }
+
   const configuredThreshold = Number(
     process.env.LOCATION_STALE_THRESHOLD_SECONDS ?? 60
   );
 
   const staleThresholdSeconds =
-    Number.isFinite(configuredThreshold) && configuredThreshold >= 0
+    Number.isFinite(configuredThreshold) &&
+      configuredThreshold >= 0
       ? configuredThreshold
       : 60;
 
-  // Calculate location age using the server's receipt timestamp.
-  const now = Date.now();
-  const receivedAtMs = new Date(latestLocation.receivedAt).getTime();
+  // Combine trip, van, driver and GPS information.
+  return trips.map((trip) => {
+    const van = vanMap.get(String(trip.vanId));
+    const driver = driverMap.get(String(trip.driverId));
+    const latestLocation = latestLocationMap.get(String(trip._id));
 
-  // Clamp negative ages to zero to avoid reporting a negative duration
-  // if the server clock changes slightly.
-  const ageInSeconds = Math.max(
-    0,
-    Math.floor((now - receivedAtMs) / 1000)
-  );
+    let location = null;
 
-  // A location becomes stale once its age exceeds the configured threshold.
-  const isStale = ageInSeconds > staleThresholdSeconds;
+    if (latestLocation) {
+      const ageInSeconds = Math.max(
+        0,
+        Math.floor(
+          (Date.now() -
+            new Date(latestLocation.receivedAt).getTime()) / 1000
+        )
+      );
 
-  // Return only the fields needed by the frontend.
-  // Do not return the complete MongoDB document.
-  return {
-    tripId: String(trip._id),
-    vanId: String(trip.vanId),
-    latitude: latestLocation.latitude,
-    longitude: latestLocation.longitude,
-    recordedAt: latestLocation.recordedAt.toISOString(),
-    receivedAt: latestLocation.receivedAt.toISOString(),
-    ageInSeconds,
-    isStale
-  };
+      location = {
+        latitude: latestLocation.latitude,
+        longitude: latestLocation.longitude,
+        recordedAt: latestLocation.recordedAt.toISOString(),
+        receivedAt: latestLocation.receivedAt.toISOString(),
+        ageInSeconds,
+        isStale: ageInSeconds > staleThresholdSeconds
+      };
+    }
+
+    return {
+      trip: {
+        id: String(trip._id),
+        status: trip.status,
+        startedAt: trip.startedAt.toISOString()
+      },
+
+      van: van
+        ? {
+          id: String(van._id),
+          registrationNumber: van.registrationNumber,
+          isActive: van.isActive
+        }
+        : null,
+
+      driver: driver
+        ? {
+          id: String(driver._id),
+          name: driver.name,
+          isActive: driver.isActive
+        }
+        : null,
+
+      location
+    };
+  });
 }
