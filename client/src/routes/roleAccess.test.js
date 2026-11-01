@@ -39,3 +39,9 @@ test('the admin dashboard remains restricted to admins', () => {
   assert.equal(getProtectedRouteRedirect({ role: 'driver' }, true, ['admin']), '/driver/dashboard');
   assert.equal(getProtectedRouteRedirect({ role: 'parent' }, true, ['admin']), '/parent/dashboard');
 });
+
+test('admin student audit routes reject driver and parent roles', () => {
+  assert.equal(getProtectedRouteRedirect({ role: 'admin' }, true, ['admin']), null);
+  assert.equal(getProtectedRouteRedirect({ role: 'driver' }, true, ['admin']), '/driver/dashboard');
+  assert.equal(getProtectedRouteRedirect({ role: 'parent' }, true, ['admin']), '/parent/dashboard');
+});

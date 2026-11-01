@@ -9,6 +9,8 @@ import { DriverDashboardPage } from '../pages/DriverDashboardPage.jsx';
 import { ParentDashboardPage } from '../pages/ParentDashboardPage.jsx';
 import { VansPage } from '../pages/VansPage.jsx';
 import { LiveTrackingPage } from '../pages/LiveTrackingPage.jsx';
+import { DriversPage } from '../pages/DriversPage.jsx';
+import { StudentActivityPage } from '../pages/StudentActivityPage.jsx';
 
 export function AppRouter() {
   return (
@@ -21,9 +23,12 @@ export function AppRouter() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/dashboard/vans" element={<VansPage />} />
           <Route path="/dashboard/live-tracking" element={<LiveTrackingPage />} />
+          <Route path="/dashboard/drivers" element={<DriversPage />} />
+          <Route path="/dashboard/student-activity" element={<StudentActivityPage />} />
         </Route>
         <Route element={<ProtectedRoute allowedRoles={['driver']} />}>
           <Route path="/driver/dashboard" element={<DriverDashboardPage />} />
+          <Route path="/driver/trip" element={<DriverDashboardPage />} />
         </Route>
         <Route element={<ProtectedRoute allowedRoles={['parent']} />}>
           <Route path="/parent/dashboard" element={<ParentDashboardPage />} />

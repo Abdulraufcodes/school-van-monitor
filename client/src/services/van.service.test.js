@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { api, setAccessToken, setAuthFailureHandler } from './api.js';
-import { createVan, getVans } from './van.service.js';
+import { createVan, getVans, updateVanLocation } from './van.service.js';
 import { getDrivers } from './driver.service.js';
 
 function useAdapter(t, adapter) {
@@ -62,6 +62,34 @@ test('createVan posts only registrationNumber and assignedDriver', async (t) => 
     registrationNumber: 'GJ01AB1234',
     assignedDriver: 'driver-user-id'
   });
+});
+
+test('updateVanLocation posts contract coordinates and device timestamp, then returns confirmed data', async (t) => {
+  const payload = { latitude: 22.3, longitude: 73.1, recordedAt: '2026-11-02T10:00:00.000Z' };
+  const confirmed = { vanId: 'van-1', tripId: 'trip-1', ...payload, receivedAt: '2026-11-02T10:00:01.000Z' };
+  let requestConfig;
+  useAdapter(t, async (config) => {
+    requestConfig = config;
+    return { data: { success: true, message: 'Location updated', data: confirmed }, status: 200, statusText: 'OK', headers: {}, config };
+  });
+
+  assert.deepEqual(await updateVanLocation('van-1', payload), confirmed);
+  assert.equal(requestConfig.method, 'post');
+  assert.equal(requestConfig.url, '/vans/van-1/location');
+  assert.deepEqual(JSON.parse(requestConfig.data), payload);
+});
+
+test('updateVanLocation propagates API errors and rejects unconfirmed response data', async (t) => {
+  const error = new Error('Request failed');
+  useAdapter(t, async (config) => {
+    error.config = config;
+    error.response = { status: 409, data: { code: 'STALE_LOCATION_UPDATE' }, headers: {}, config };
+    throw error;
+  });
+  await assert.rejects(updateVanLocation('van-1', { latitude: 1, longitude: 2, recordedAt: '2026-11-02T10:00:00.000Z' }), (caught) => caught === error);
+
+  api.defaults.adapter = async (config) => ({ data: { success: true, data: {} }, status: 200, statusText: 'OK', headers: {}, config });
+  await assert.rejects(updateVanLocation('van-1', { latitude: 1, longitude: 2, recordedAt: '2026-11-02T10:00:00.000Z' }), /unexpected location response/);
 });
 
 test('service errors propagate from the shared Axios client', async (t) => {

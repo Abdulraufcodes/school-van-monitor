@@ -3,6 +3,10 @@ import axios from 'axios';
 export const api = axios.create({
   baseURL: '/api',
   timeout: 10000,
+  // Fetch's no-store mode prevents browser-managed conditional validation for
+  // authenticated, frequently changing dashboard data.
+  adapter: ['fetch', 'xhr', 'http'],
+  fetchOptions: { cache: 'no-store' },
   headers: { 'Content-Type': 'application/json' }
 });
 

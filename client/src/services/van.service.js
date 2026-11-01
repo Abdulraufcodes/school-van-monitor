@@ -16,3 +16,19 @@ export async function createVan(payload) {
   });
   return response.data?.data;
 }
+
+export async function updateVanLocation(vanId, { latitude, longitude, recordedAt }) {
+  const response = await api.post(`/vans/${encodeURIComponent(vanId)}/location`, {
+    latitude,
+    longitude,
+    recordedAt
+  });
+  const location = response.data?.data;
+  if (!location || typeof location !== 'object' || Array.isArray(location)
+    || !location.vanId || !location.tripId
+    || !Number.isFinite(location.latitude) || !Number.isFinite(location.longitude)
+    || !location.recordedAt || !location.receivedAt) {
+    throw new Error('The server returned an unexpected location response.');
+  }
+  return location;
+}

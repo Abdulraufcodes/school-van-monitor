@@ -5,14 +5,14 @@ export const roleNavigation = Object.freeze({
     item('Overview', '/dashboard'),
     item('Vans', '/dashboard/vans'),
     item('Live Tracking', '/dashboard/live-tracking'),
-    item('Students', '/dashboard/students', true),
-    item('Drivers', '/dashboard/drivers', true),
+    item('Students', '/dashboard/student-activity'),
+    item('Drivers', '/dashboard/drivers'),
     item('Parents', '/dashboard/parents', true),
     item('Reports', '/dashboard/reports', true)
   ],
   driver: [
     item('Dashboard', '/driver/dashboard'),
-    item('My Trip', '/driver/trip', true),
+    item('My Trip', '/driver/trip'),
     item('Student Roster', '/driver/roster', true),
     item('Trip History', '/driver/history', true)
   ],
