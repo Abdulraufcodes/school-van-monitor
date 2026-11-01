@@ -9,3 +9,21 @@
 }
 
 body { margin: 0; min-width: 320px; }
+
+.fleet-map-marker {
+  border: 0;
+  background: transparent;
+}
+
+.fleet-map-marker span {
+  display: block;
+  width: 28px;
+  height: 28px;
+  border: 3px solid #fff;
+  border-radius: 9999px;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 35%);
+}
+
+.fleet-map-marker--fresh span { background: #059669; }
+.fleet-map-marker--stale span { background: #d97706; }
+.fleet-map-marker--unknown span { background: #64748b; }

@@ -14,9 +14,9 @@ test('dashboard navigation is configured separately for each supported role', ()
   ]);
 });
 
-test('admin overview and van management are enabled while other role destinations stay unchanged', () => {
+test('admin overview, van management, and live tracking are enabled while other role destinations stay unchanged', () => {
   assert.deepEqual(roleNavigation.admin.filter(({ comingSoon }) => !comingSoon).map(({ to }) => to), [
-    '/dashboard', '/dashboard/vans'
+    '/dashboard', '/dashboard/vans', '/dashboard/live-tracking'
   ]);
   for (const role of ['driver', 'parent']) {
     const enabled = roleNavigation[role].filter(({ comingSoon }) => !comingSoon);

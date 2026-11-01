@@ -4,7 +4,7 @@ export const roleNavigation = Object.freeze({
   admin: [
     item('Overview', '/dashboard'),
     item('Vans', '/dashboard/vans'),
-    item('Live Tracking', '/dashboard/live-tracking', true),
+    item('Live Tracking', '/dashboard/live-tracking'),
     item('Students', '/dashboard/students', true),
     item('Drivers', '/dashboard/drivers', true),
     item('Parents', '/dashboard/parents', true),
