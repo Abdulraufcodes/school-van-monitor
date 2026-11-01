@@ -7,6 +7,7 @@ import { ProtectedRoute } from './ProtectedRoute.jsx';
 import { RoleSelectionPage } from '../pages/RoleSelectionPage.jsx';
 import { DriverDashboardPage } from '../pages/DriverDashboardPage.jsx';
 import { ParentDashboardPage } from '../pages/ParentDashboardPage.jsx';
+import { VansPage } from '../pages/VansPage.jsx';
 
 export function AppRouter() {
   return (
@@ -17,6 +18,7 @@ export function AppRouter() {
         <Route path="/login" element={<LoginPage />} />
         <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/dashboard/vans" element={<VansPage />} />
         </Route>
         <Route element={<ProtectedRoute allowedRoles={['driver']} />}>
           <Route path="/driver/dashboard" element={<DriverDashboardPage />} />

@@ -14,11 +14,14 @@ test('dashboard navigation is configured separately for each supported role', ()
   ]);
 });
 
-test('only each role dashboard is enabled until feature screens are implemented', () => {
-  for (const [role, items] of Object.entries(roleNavigation)) {
-    const enabled = items.filter(({ comingSoon }) => !comingSoon);
-    assert.equal(enabled.length, 1, `${role} should have one available destination`);
-    assert.equal(enabled[0].to, role === 'admin' ? '/dashboard' : `/${role}/dashboard`);
+test('admin overview and van management are enabled while other role destinations stay unchanged', () => {
+  assert.deepEqual(roleNavigation.admin.filter(({ comingSoon }) => !comingSoon).map(({ to }) => to), [
+    '/dashboard', '/dashboard/vans'
+  ]);
+  for (const role of ['driver', 'parent']) {
+    const enabled = roleNavigation[role].filter(({ comingSoon }) => !comingSoon);
+    assert.equal(enabled.length, 1, `${role} should keep only its dashboard available`);
+    assert.equal(enabled[0].to, `/${role}/dashboard`);
   }
 });
 

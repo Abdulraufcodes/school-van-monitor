@@ -70,6 +70,27 @@ Errors:
 - `403 SCHOOL_ACCESS_DENIED`: school association is missing or unavailable
 - `409 VAN_ALREADY_EXISTS`: registration number already exists
 
+### `GET /drivers`
+Admin-only. Requires a valid bearer token and a valid active school association. The school scope is taken from the authenticated admin's database-backed account; request-supplied school IDs are not used.
+
+Returns HTTP `200` with the standard success envelope. `data` is an array containing only active users with role `driver` in the authenticated admin's school. Each item contains only `_id`, `name`, and `email`. The array is empty when there are no matching drivers.
+
+```json
+{
+  "success": true,
+  "message": "Drivers retrieved successfully",
+  "data": [
+    {
+      "_id": "MONGODB_OBJECT_ID",
+      "name": "Driver Name",
+      "email": "driver@example.test"
+    }
+  ]
+}
+```
+
+Unauthenticated requests receive `401 UNAUTHENTICATED`. Non-admin roles receive `403 FORBIDDEN`. An admin without a valid active school association receives `403 SCHOOL_ACCESS_DENIED`.
+
 
 ### `POST /trips/start`
 

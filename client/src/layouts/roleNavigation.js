@@ -3,7 +3,7 @@ const item = (label, to, comingSoon = false) => ({ label, to, comingSoon });
 export const roleNavigation = Object.freeze({
   admin: [
     item('Overview', '/dashboard'),
-    item('Vans', '/dashboard/vans', true),
+    item('Vans', '/dashboard/vans'),
     item('Live Tracking', '/dashboard/live-tracking', true),
     item('Students', '/dashboard/students', true),
     item('Drivers', '/dashboard/drivers', true),
