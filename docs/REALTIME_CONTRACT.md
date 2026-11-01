@@ -41,7 +41,7 @@ Clients must not be allowed to join arbitrary rooms.
 |---|---|---|
 | Driver client → server | `location:update` (optional future socket ingestion) | `{ vanId, latitude, longitude, recordedAt? }` |
 | Server → authorized room | `location:updated` | `{ vanId, tripId, latitude, longitude, recordedAt, receivedAt }` |
-| Server → authorized room | `trip:status` | `{ tripId, vanId, status, startedAt?, endedAt? }` |
+| Server → authorized room | `trip:status` | `{ tripId, vanId, status, tripType, serviceDate, startedAt?, endedAt? }` |
 | Server → authorized room | `student:event` | `{ eventId, studentId, tripId, type, occurredAt }` |
 | Server → parent session | `notification:near-home` | `{ studentId, tripId, etaSeconds?, generatedAt }` |
 
@@ -54,5 +54,6 @@ Clients must not be allowed to join arbitrary rooms.
 - Parents should receive only events for linked students/authorized trips.
 - Use server time for `receivedAt` and event generation time.
 - Reconnect should trigger a fresh REST fetch; socket events alone are not the source of truth.
+- `trip:status` includes the trip's `tripType` and school-local `serviceDate`; legacy trip values may be `null`.
 - UI must show `Last updated ...` and a stale/offline state if no update arrives within the agreed threshold.
 - Do not emit precise location to unauthorized users or log it unnecessarily.

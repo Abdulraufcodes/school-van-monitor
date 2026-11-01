@@ -169,6 +169,8 @@ export function emitTripStatusUpdate(trip) {
     tripId: trip.id,
     vanId: trip.vanId,
     status: trip.status,
+    tripType: trip.tripType ?? null,
+    serviceDate: trip.serviceDate ?? null,
     startedAt: trip.startedAt,
     endedAt: trip.endedAt
   });

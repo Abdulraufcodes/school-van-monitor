@@ -1,6 +1,6 @@
 # Database Schema and Relationships
 
-The following is the agreed conceptual model. The Van, Trip and LocationUpdate models are represented in the reference scaffold; the remaining entities are design guidance and must be implemented before those workflows are built.
+This document describes the current runtime schema and relationships. School, User, Student, Van, Trip, LocationUpdate, StudentEvent, and PickupOtp models are implemented.
 
 ## Relationships
 
@@ -35,7 +35,7 @@ Relationships:
 - One School has many Students through Student.schoolId.
 - A school admin manages records belonging to their own school.
 
-### User (planned)
+### User (implemented)
 - `_id`
 - `name`
 - `email` (unique, normalized)
@@ -45,7 +45,7 @@ Relationships:
 - `isActive`
 - timestamps
 
-### Student (planned)
+### Student (implemented)
 - `_id`
 - `schoolId`
 - `name`
@@ -63,10 +63,12 @@ Relationships:
 - `isActive`
 - timestamps
 
-### Trip (implemented reference)
+### Trip (implemented)
 - `_id`
 - `vanId`
 - `driverId`
+- `tripType`: `morning_pickup | afternoon_dropoff`
+- `serviceDate`: `YYYY-MM-DD`, calculated by the backend in `Asia/Kolkata`
 - `status`: `active | completed | cancelled`
 - `startedAt`
 - `endedAt`
@@ -83,11 +85,13 @@ Relationships:
 - `receivedAt`
 - timestamps
 
-### StudentEvent (planned)
+### StudentEvent (implemented)
 - `_id`
 - `studentId`
 - `tripId`
 - `driverId`
+- `vanId`
+- `serviceDate`: copied from the server-owned trip date
 - `type`: `picked_up | dropped_off`
 - `occurredAt` (server time)
 - `recordedAt` (optional device time)
@@ -98,9 +102,12 @@ Relationships:
 
 - Unique normalized user email.
 - Unique van registration number.
+- Unique daily trip `{ schoolId, vanId, serviceDate, tripType }` when the new date/type fields exist.
+- Unique active trip by van and by driver (existing partial unique indexes).
 - Index van records by school for tenant-scoped queries.
 - `LocationUpdate`: compound index `{ tripId: 1, receivedAt: -1 }`.
 - `StudentEvent`: indexes on `{ studentId: 1, occurredAt: -1 }` and `{ tripId: 1, occurredAt: -1 }`.
+- `StudentEvent`: unique `{ tripId, studentId, type }` and unique `{ schoolId, studentId, serviceDate, type }` when a string service date exists.
 - Validate state transitions in service logic.
 - Prevent multiple active trips for the same van/driver with a transaction or carefully designed atomic update when production concurrency matters.
 - Add school/tenant scoping to every admin query.
@@ -123,6 +130,7 @@ The `StudentEvent` collection records student pickup and drop-off activity durin
 | studentId | ObjectId | Student associated with the event |
 | tripId | ObjectId | Trip associated with the event |
 | vanId | ObjectId | Van associated with the event |
+| serviceDate | String | School-local service date copied from the trip (`YYYY-MM-DD`) |
 | driverId | ObjectId | Driver who recorded the event |
 | type | String | `picked_up` or `dropped_off` |
 | occurredAt | Date | Server-generated event timestamp |
@@ -134,6 +142,7 @@ The `StudentEvent` collection records student pickup and drop-off activity durin
 | Index | Purpose |
 |---|---|
 | `{ tripId: 1, studentId: 1, type: 1 }` unique | Prevents duplicate pickup or drop-off events for a student on a trip |
+| `{ schoolId: 1, studentId: 1, serviceDate: 1, type: 1 }` unique, partial | Prevents duplicate pickup or drop-off for the same student and service day across trips or vans |
 | Student history index | Supports student event history queries |
 | Trip history index | Supports trip event history queries |
 
@@ -182,6 +191,10 @@ The `PickupOtp` collection stores the current OTP for a student's pickup or drop
 3. OTP is sent to linked active parents.
 4. Driver verifies the OTP.
 5. Backend records a `picked_up` event.
-6. Before drop-off, backend checks that pickup was recorded on the same trip.
+6. Before drop-off, backend checks that a verified pickup belongs to the corresponding morning trip for the same student, van, school, and service date.
 7. Driver requests and verifies a separate drop-off OTP.
 8. Backend records a `dropped_off` event.
+
+## Existing record compatibility
+
+The partial unique indexes apply only when the new `tripType`/`serviceDate` fields are present, so existing legacy trip and event documents are not rewritten. Legacy trips remain readable and serialize the new metadata as `null`; they cannot be used for new OTP operations, which require a typed trip and service date. No backfill or migration runs automatically. Plan an explicit backfill if historical reporting needs service dates.

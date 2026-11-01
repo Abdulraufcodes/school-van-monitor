@@ -11,7 +11,8 @@ export const startTripSchema = z.object({
   params: z.object({}),
   query: z.object({}).passthrough(),
   body: z.object({
-    vanId: objectId
+    vanId: objectId,
+    tripType: z.enum(['morning_pickup', 'afternoon_dropoff'])
   }).strict()
 });
 

@@ -5,6 +5,7 @@ import request from 'supertest';
 import { app } from '../src/app.js';
 import User from '../modules/auth/User.model.js';
 import School from '../modules/school/school.model.js';
+import { Van } from '../modules/van/van.model.js';
 
 const testSecret = 'driver-route-signing-key-only';
 const adminId = '507f1f77bcf86cd799439011';
@@ -150,4 +151,73 @@ test('admin school scope comes from the authenticated user, not request input', 
   assert.equal(response.status, 200);
   assert.equal(String(query.filter.schoolId), schoolId);
   assert.notEqual(String(query.filter.schoolId), otherSchoolId);
+});
+
+test('driver receives only their assigned vans in their own school, including inactive assignments', async (t) => {
+  mockAuthenticatedUser(t, 'driver');
+  const records = [
+    { _id: 'van-one', registrationNumber: 'A-100', assignedDriver: adminId, schoolId, isActive: true },
+    { _id: 'van-inactive', registrationNumber: 'A-200', assignedDriver: adminId, schoolId, isActive: false },
+    { _id: 'other-driver', registrationNumber: 'A-300', assignedDriver: otherSchoolId, schoolId, isActive: true },
+    { _id: 'other-school', registrationNumber: 'A-400', assignedDriver: adminId, schoolId: otherSchoolId, isActive: true }
+  ];
+  let vanFilter;
+  let selectedFields;
+  t.mock.method(Van, 'find', (filter) => {
+    vanFilter = filter;
+    return {
+      select(fields) { selectedFields = fields; return this; },
+      sort() { return this; },
+      lean: async () => records.filter((van) =>
+        String(van.assignedDriver) === String(filter.assignedDriver) &&
+        String(van.schoolId) === String(filter.schoolId)
+      )
+    };
+  });
+
+  const response = await request(app).get('/api/drivers/me/vans')
+    .set('Authorization', `Bearer ${makeToken('driver')}`);
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.message, 'Assigned vans retrieved successfully');
+  assert.deepEqual(response.body.data, [
+    { id: 'van-one', registrationNumber: 'A-100', isActive: true },
+    { id: 'van-inactive', registrationNumber: 'A-200', isActive: false }
+  ]);
+  assert.deepEqual(vanFilter, { assignedDriver: adminId, schoolId });
+  assert.equal(selectedFields, '_id registrationNumber isActive');
+});
+
+test('assigned van discovery rejects unauthenticated and non-driver requests', async (t) => {
+  process.env.JWT_ACCESS_SECRET = testSecret;
+  const unauthenticated = await request(app).get('/api/drivers/me/vans');
+  assert.equal(unauthenticated.status, 401);
+  assert.equal(unauthenticated.body.code, 'UNAUTHENTICATED');
+
+  let databaseRole = 'admin';
+  t.mock.method(User, 'findById', () => ({
+    select: async () => ({
+      _id: adminId,
+      name: 'Test Account',
+      email: 'account@example.test',
+      role: databaseRole,
+      schoolId,
+      isActive: true
+    })
+  }));
+  for (const role of ['admin', 'parent']) {
+    databaseRole = role;
+    const response = await request(app).get('/api/drivers/me/vans')
+      .set('Authorization', `Bearer ${makeToken(role)}`);
+    assert.equal(response.status, 403);
+    assert.equal(response.body.code, 'FORBIDDEN');
+  }
+});
+
+test('assigned van discovery rejects request-supplied school scoping', async (t) => {
+  mockAuthenticatedUser(t, 'driver');
+  const response = await request(app).get(`/api/drivers/me/vans?schoolId=${otherSchoolId}`)
+    .set('Authorization', `Bearer ${makeToken('driver')}`);
+  assert.equal(response.status, 400);
+  assert.equal(response.body.code, 'VALIDATION_ERROR');
 });

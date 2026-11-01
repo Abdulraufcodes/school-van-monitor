@@ -92,6 +92,10 @@ Returns HTTP `200` with the standard success envelope. `data` is an array contai
 Unauthenticated requests receive `401 UNAUTHENTICATED`. Non-admin roles receive `403 FORBIDDEN`. An admin without a valid active school association receives `403 SCHOOL_ACCESS_DENIED`.
 
 
+### `GET /drivers/me/vans`
+
+Driver-only. Driver and school are derived from the authenticated database user; the request has no body, query parameters, or client-supplied IDs. Returns HTTP `200` with the standard envelope. `data` is an array of `{ id, registrationNumber, isActive }` for all vans assigned to the driver, including inactive vans; no assignments returns `[]`.
+
 ### `POST /trips/start`
 
 Driver-only. Starts a trip using an active van assigned to the authenticated driver in the same school.
@@ -100,11 +104,14 @@ Request body:
 
 ```json
 {
-  "vanId": "VALID_MONGODB_OBJECT_ID"
+  "vanId": "VALID_MONGODB_OBJECT_ID",
+  "tripType": "morning_pickup"
 }
 ```
 
-Success: `201`
+`tripType` must be `morning_pickup` or `afternoon_dropoff`. The server calculates `serviceDate` as the `Asia/Kolkata` local calendar date at start time; clients cannot provide it.
+
+Success: `201`. `data.trip` includes `id`, `schoolId`, `vanId`, `driverId`, `tripType`, `serviceDate` (`YYYY-MM-DD`), `status`, `startedAt`, `endedAt`, `createdAt`, and `updatedAt`.
 
 Errors:
 - `400 VALIDATION_ERROR`: invalid van ID or request body
@@ -113,10 +120,13 @@ Errors:
 - `403 SCHOOL_ACCESS_DENIED`: missing valid school association
 - `404 ASSIGNED_VAN_NOT_FOUND`: van is inactive, missing, or not assigned to this driver in their school
 - `409 ACTIVE_TRIP_EXISTS`: driver or van already has an active trip
+- `409 TRIP_ALREADY_EXISTS`: this van already has that trip type for the service date
+
+The unique trip key is school + van + service date + trip type. Morning and afternoon are separate trip records. A driver and van may still have only one active trip at a time.
 
 ### `GET /trips/active`
 
-Driver-only. Returns the authenticated driver's active trip.
+Driver-only. Returns the authenticated driver's active trip, including `tripType` and `serviceDate`. Legacy trips without these fields serialize them as `null`.
 
 Success: `200`
 
@@ -126,7 +136,7 @@ When no active trip exists, `data.trip` is `null`.
 
 Driver-only. Completes an active trip owned by the authenticated driver in their school.
 
-The server sets `endedAt` using server time.
+The server sets `endedAt` using server time. The returned trip includes `tripType` and `serviceDate`.
 
 Success: `200`
 
@@ -137,6 +147,24 @@ Errors:
 - `403 SCHOOL_ACCESS_DENIED`: missing valid school association
 - `404 TRIP_NOT_FOUND`: trip does not belong to the authenticated driver and school, or does not exist
 - `409 TRIP_NOT_ACTIVE`: trip has already ended or is no longer active
+
+### `GET /trips/admin/locations`
+
+Admin-only; requires the authenticated admin's active school association. Returns only active trips for that school. Each data item includes `trip` (`id`, `status`, `startedAt`, `tripType`, `serviceDate`), nullable `van` and `driver`, and nullable `location`. A location contains `latitude`, `longitude`, `recordedAt`, `receivedAt`, `ageInSeconds`, and `isStale`. Active trips without location updates are included with `location: null`.
+
+### `GET /trips/:tripId/location`
+
+Parent or admin. Admin access is school-scoped. Parent access requires an active linked student assigned to the trip's van. The `trip` object includes `tripType` and `serviceDate` (null for legacy trips); `location` is null until the first GPS update.
+
+### `GET /student-events/:tripId/students`
+
+Driver-only and limited to the authenticated driver's active trip. Returns `tripType` and `serviceDate`, plus student pickup/drop-off statuses and timestamps. For an afternoon trip, pickup comes from the matching morning trip and drop-off from the afternoon trip.
+
+### Separate-trip student event workflow
+
+Pickup OTP request and verification are allowed only on an active `morning_pickup` trip. Drop-off OTP request and verification are allowed only on an active `afternoon_dropoff` trip. Both event records carry the server-derived trip `serviceDate`; the events link by student, van, school, and service date, not by trip ID.
+
+Drop-off requires a verified pickup event whose referenced trip is a `morning_pickup` for the same student, van, school, and service date. A duplicate pickup/drop-off for that student, school, and service date is rejected with `409 ALREADY_PICKED_UP` or `409 ALREADY_DROPPED_OFF`, even if a later van assignment differs. Wrong trip type returns `409 TRIP_TYPE_MISMATCH`; absent or mismatched morning pickup returns `409 STUDENT_NOT_PICKED_UP`.
 
 
 
@@ -151,11 +179,7 @@ These are proposed endpoints to help the team split work. Treat them as design p
 | POST | `/auth/logout` | Authenticated | Revoke session |
 | GET | `/students/:studentId` | Parent/admin | Read student with ownership check |
 | POST | `/students` | Admin | Create student |
-| POST | `/vans` | Admin | Create van |
 | PATCH | `/vans/:vanId/assignment` | Admin | Assign driver / route |
-| POST | `/trips` | Driver/admin | Start trip subject to assignment rules |
-| PATCH | `/trips/:tripId/end` | Assigned driver/admin | End trip |
-| POST | `/trips/:tripId/events` | Assigned driver | Record pickup/drop-off event |
 | GET | `/parents/me/students` | Parent | List only linked students |
 | GET | `/students/:studentId/trips/current` | Linked parent/admin | Current trip status |
 | GET | `/students/:studentId/events` | Linked parent/admin | Authorized event history |
@@ -267,7 +291,7 @@ Generates a separate six-digit OTP for drop-off and emails it to the linked acti
 
 ### Security rules
 
-- Student must already have a `picked_up` event on the same trip.
+- Student must have a verified `picked_up` event on the matching morning trip (same student, van, school, and service date).
 - Student must not already have a `dropped_off` event.
 - Uses a separate OTP with purpose `dropoff`.
 - Uses the same five-minute expiry, three-attempt limit and 60-second resend cooldown.

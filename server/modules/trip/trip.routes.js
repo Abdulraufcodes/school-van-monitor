@@ -23,7 +23,7 @@ import {
 
 export const tripRouter = Router();
 
-// Start a trip: drivers only.
+// Start a morning pickup or afternoon drop-off trip: drivers only.
 tripRouter.post(
   '/start',
   authenticate,

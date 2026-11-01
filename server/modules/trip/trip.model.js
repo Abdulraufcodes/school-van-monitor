@@ -20,6 +20,16 @@ const tripSchema = new Schema(
       ref: 'User',
       required: true
     },
+    tripType: {
+      type: String,
+      enum: ['morning_pickup', 'afternoon_dropoff'],
+      required: true
+    },
+    serviceDate: {
+      type: String,
+      required: true,
+      match: /^\d{4}-\d{2}-\d{2}$/
+    },
     status: {
       type: String,
       enum: ['active', 'completed', 'cancelled'],
@@ -42,6 +52,17 @@ const tripSchema = new Schema(
 
 tripSchema.index({ schoolId: 1, vanId: 1, status: 1 });
 tripSchema.index({ schoolId: 1, driverId: 1, status: 1 });
+
+tripSchema.index(
+  { schoolId: 1, vanId: 1, serviceDate: 1, tripType: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      serviceDate: { $type: 'string' },
+      tripType: { $type: 'string' }
+    }
+  }
+);
 
 // At most one active trip per van.
 tripSchema.index(

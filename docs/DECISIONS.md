@@ -24,3 +24,8 @@
 **Decision:** Persist timestamps in UTC and render local time in the client.
 
 **Why:** Avoids timezone ambiguity across devices.
+
+## AD-006: Separate daily pickup and drop-off trips
+**Decision:** Store morning pickup and afternoon drop-off as separate Trip records, keyed by school, van, India-local service date, and trip type. The backend derives `serviceDate` in `Asia/Kolkata`; event records copy that date and link by student, van, school, and date.
+
+**Why:** Pickup and drop-off happen on distinct runs while preserving a verifiable same-day student journey. UTC timestamps remain authoritative for event ordering; service date is only the school-day grouping key.

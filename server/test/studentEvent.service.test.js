@@ -11,7 +11,11 @@ import StudentEvent from '../modules/studentEvent/studentEvent.model.js';
 
 import {
     requestPickupOtp,
-    verifyPickupOtpAndRecord
+    verifyPickupOtpAndRecord,
+    requestDropoffOtp,
+    verifyDropoffOtpAndRecord,
+    getStudentEventHistory,
+    getTripStudentStatuses
 } from '../modules/studentEvent/studentEvent.service.js';
 
 import {
@@ -19,11 +23,8 @@ import {
     hashPickupOtp
 } from '../modules/studentEvent/pickupOtp.utils.js';
 
-import {
-    requestDropoffOtp,
-    verifyDropoffOtpAndRecord,
-    getStudentEventHistory
-} from '../modules/studentEvent/studentEvent.service.js';
+process.env.NODE_ENV = 'test';
+process.env.OTP_HASH_SECRET = 'test-only-otp-hash-secret-with-32-bytes-minimum';
 
 const schoolId = '507f1f77bcf86cd799439012';
 const driverId = '507f1f77bcf86cd799439011';
@@ -34,37 +35,86 @@ const parentId = '507f1f77bcf86cd799439016';
 
 const driverRequest = { tripId, studentId, driverId, schoolId };
 
-function mockPickupContext(t, studentOverrides = {}) {
-    t.mock.method(Trip, 'findOne', () => ({
-        lean: async () => ({
-            _id: tripId,
-            vanId,
-            driverId,
-            schoolId,
-            status: 'active'
-        })
-    }));
+function mockPickupContext(t, studentOverrides = {}, {
+    tripType = 'morning_pickup',
+    pickupEvent = true,
+    morningTripExists = true,
+    vanExists = true,
+    studentExists = true
+} = {}) {
+    let tripFilter;
+    let vanFilter;
+    let studentFilter;
+    let pickupEventFilter;
+    const currentTrip = {
+        _id: tripId,
+        vanId,
+        driverId,
+        schoolId,
+        tripType,
+        serviceDate: '2026-01-02',
+        status: 'active'
+    };
+    const morningTrip = {
+        _id: '507f1f77bcf86cd799439020',
+        vanId,
+        driverId,
+        schoolId,
+        tripType: 'morning_pickup',
+        serviceDate: '2026-01-02',
+        status: 'completed'
+    };
+    t.mock.method(Trip, 'findOne', (filter) => {
+        if (filter.status === 'active') tripFilter = filter;
+        return {
+            select() { return this; },
+            lean: async () => filter.tripType === 'morning_pickup'
+                ? (morningTripExists ? morningTrip : null)
+                : currentTrip
+        };
+    });
 
-    t.mock.method(Van, 'findOne', () => ({
-        lean: async () => ({
-            _id: vanId,
-            schoolId,
-            assignedDriver: driverId,
-            isActive: true
-        })
-    }));
+    t.mock.method(Van, 'findOne', (filter) => {
+        vanFilter = filter;
+        return {
+            lean: async () => vanExists ? {
+                _id: vanId,
+                schoolId,
+                assignedDriver: driverId,
+                isActive: true
+            } : null
+        };
+    });
 
-    t.mock.method(Student, 'findOne', () => ({
-        lean: async () => ({
-            _id: studentId,
-            name: 'Test Student',
-            schoolId,
-            assignedVanId: vanId,
-            parentIds: [parentId],
-            isActive: true,
-            ...studentOverrides
-        })
-    }));
+    t.mock.method(Student, 'findOne', (filter) => {
+        studentFilter = filter;
+        return {
+            lean: async () => studentExists ? {
+                _id: studentId,
+                name: 'Test Student',
+                schoolId,
+                assignedVanId: vanId,
+                parentIds: [parentId],
+                isActive: true,
+                ...studentOverrides
+            } : null
+        };
+    });
+
+    t.mock.method(StudentEvent, 'find', (filter) => {
+        pickupEventFilter = filter;
+        return {
+            select() { return this; },
+            lean: async () => pickupEvent ? [{ tripId: morningTrip._id }] : []
+        };
+    });
+
+    return {
+        get tripFilter() { return tripFilter; },
+        get vanFilter() { return vanFilter; },
+        get studentFilter() { return studentFilter; },
+        get pickupEventFilter() { return pickupEventFilter; }
+    };
 }
 
 function mockParents(t) {
@@ -122,6 +172,11 @@ test('pickup OTP request rejects another driver or inactive trip', async (t) => 
         requestPickupOtp(driverRequest),
         { code: 'ACTIVE_TRIP_NOT_FOUND' }
     );
+});
+
+test('pickup OTP request requires a morning pickup trip', async (t) => {
+    mockPickupContext(t, {}, { tripType: 'afternoon_dropoff' });
+    await assert.rejects(requestPickupOtp(driverRequest), { code: 'TRIP_TYPE_MISMATCH' });
 });
 
 test('pickup OTP request enforces the resend cooldown', async (t) => {
@@ -332,21 +387,75 @@ test('correct OTP creates a pickup event and consumes the OTP', async (t) => {
     assert.equal(String(createdEvent.tripId), tripId);
     assert.equal(String(createdEvent.vanId), vanId);
     assert.equal(String(createdEvent.driverId), driverId);
+    assert.equal(createdEvent.serviceDate, '2026-01-02');
 
     assert.equal(result.type, 'picked_up');
     assert.equal(result.studentId, studentId);
     assert.equal(result.tripId, tripId);
 });
 
+test('afternoon roster combines pickup from morning trip and drop-off from afternoon trip', async (t) => {
+    const morningTripId = '507f1f77bcf86cd799439020';
+    const afternoonTrip = {
+        _id: tripId,
+        vanId,
+        driverId,
+        schoolId,
+        tripType: 'afternoon_dropoff',
+        serviceDate: '2026-01-02',
+        status: 'active'
+    };
+    const morningTrip = {
+        _id: morningTripId,
+        vanId,
+        driverId,
+        schoolId,
+        tripType: 'morning_pickup',
+        serviceDate: '2026-01-02',
+        status: 'completed'
+    };
+    const pickupTime = new Date('2026-01-02T01:30:00.000Z');
+    const dropoffTime = new Date('2026-01-02T10:30:00.000Z');
+
+    t.mock.method(Trip, 'findOne', (filter) => ({
+        select() { return this; },
+        lean: async () => filter.status === 'active' ? afternoonTrip : morningTrip
+    }));
+    t.mock.method(Van, 'findOne', () => ({
+        lean: async () => ({ _id: vanId, schoolId, assignedDriver: driverId, isActive: true })
+    }));
+    t.mock.method(Student, 'find', () => ({
+        select() { return this; },
+        sort() { return this; },
+        lean: async () => [{ _id: studentId, name: 'Test Student', className: '4A' }]
+    }));
+    t.mock.method(StudentEvent, 'find', () => ({
+        select() { return this; },
+        lean: async () => [
+            { studentId, tripId: morningTripId, type: 'picked_up', occurredAt: pickupTime },
+            { studentId, tripId, type: 'dropped_off', occurredAt: dropoffTime }
+        ]
+    }));
+
+    const result = await getTripStudentStatuses({ tripId, driverId, schoolId });
+
+    assert.equal(result.tripType, 'afternoon_dropoff');
+    assert.equal(result.serviceDate, '2026-01-02');
+    assert.deepEqual(result.students[0], {
+        studentId,
+        name: 'Test Student',
+        className: '4A',
+        pickupStatus: 'picked_up',
+        pickupTime,
+        dropoffStatus: 'dropped_off',
+        dropoffTime
+    });
+});
+
 
 
 test('drop-off OTP cannot be requested before student pickup', async (t) => {
-    mockPickupContext(t);
-
-    t.mock.method(StudentEvent, 'exists', async (filter) => {
-        if (filter.type === 'picked_up') return null;
-        return null;
-    });
+    const context = mockPickupContext(t, {}, { tripType: 'afternoon_dropoff', pickupEvent: false });
 
     await assert.rejects(
         requestDropoffOtp({
@@ -355,10 +464,27 @@ test('drop-off OTP cannot be requested before student pickup', async (t) => {
         }),
         { code: 'STUDENT_NOT_PICKED_UP' }
     );
+    assert.deepEqual(context.pickupEventFilter, {
+        schoolId,
+        vanId,
+        studentId,
+        serviceDate: '2026-01-02',
+        type: 'picked_up'
+    });
+});
+
+test('drop-off OTP requires an afternoon drop-off trip', async (t) => {
+    mockPickupContext(t, {}, { tripType: 'morning_pickup' });
+    await assert.rejects(requestDropoffOtp(driverRequest), { code: 'TRIP_TYPE_MISMATCH' });
+});
+
+test('drop-off rejects a pickup event that does not belong to a matching morning trip', async (t) => {
+    mockPickupContext(t, {}, { tripType: 'afternoon_dropoff', morningTripExists: false });
+    await assert.rejects(requestDropoffOtp(driverRequest), { code: 'STUDENT_NOT_PICKED_UP' });
 });
 
 test('drop-off OTP rejects a student already dropped off', async (t) => {
-    mockPickupContext(t);
+    mockPickupContext(t, {}, { tripType: 'afternoon_dropoff' });
 
     t.mock.method(StudentEvent, 'exists', async (filter) => {
         if (filter.type === 'picked_up') return { _id: 'pickup-event-id' };
@@ -377,7 +503,7 @@ test('drop-off OTP rejects a student already dropped off', async (t) => {
 
 
 test('drop-off OTP request stores a separate hashed OTP and emails the parent', async (t) => {
-    mockPickupContext(t);
+    mockPickupContext(t, {}, { tripType: 'afternoon_dropoff' });
     mockParents(t);
 
     t.mock.method(StudentEvent, 'exists', async (filter) => {
@@ -426,7 +552,7 @@ test('drop-off OTP request stores a separate hashed OTP and emails the parent', 
 
 
 test('correct drop-off OTP creates a dropped_off event and consumes the OTP', async (t) => {
-    mockPickupContext(t);
+    mockPickupContext(t, {}, { tripType: 'afternoon_dropoff' });
 
     t.mock.method(StudentEvent, 'exists', async (filter) => {
         if (filter.type === 'picked_up') return { _id: 'pickup-event-id' };
@@ -478,6 +604,7 @@ test('correct drop-off OTP creates a dropped_off event and consumes the OTP', as
     assert.equal(String(createdEvent.tripId), tripId);
     assert.equal(String(createdEvent.vanId), vanId);
     assert.equal(String(createdEvent.driverId), driverId);
+    assert.equal(createdEvent.serviceDate, '2026-01-02');
 
     assert.equal(result.type, 'dropped_off');
     assert.equal(result.studentId, studentId);

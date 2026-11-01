@@ -26,6 +26,11 @@ const studentEventSchema = new Schema(
       ref: 'Van',
       required: true
     },
+    serviceDate: {
+      type: String,
+      required: true,
+      match: /^\d{4}-\d{2}-\d{2}$/
+    },
     driverId: {
       type: Schema.Types.ObjectId,
       ref: 'User',
@@ -65,6 +70,14 @@ studentEventSchema.index(
 
 studentEventSchema.index({ studentId: 1, occurredAt: -1 });
 studentEventSchema.index({ tripId: 1, occurredAt: -1 });
+
+studentEventSchema.index(
+  { schoolId: 1, studentId: 1, serviceDate: 1, type: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { serviceDate: { $type: 'string' } }
+  }
+);
 
 const StudentEvent =
   models.StudentEvent || model('StudentEvent', studentEventSchema);
