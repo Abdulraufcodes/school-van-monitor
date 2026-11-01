@@ -160,6 +160,20 @@ export function emitTripLocationUpdate(location) {
   });
 }
 
+// Notify parents currently subscribed to a trip when its status changes.
+export function emitTripStatusUpdate(trip) {
+  // Allows service tests to run without starting Socket.IO.
+  if (!io) return;
+
+  io.to(`trip:${trip.id}`).emit('trip:status', {
+    tripId: trip.id,
+    vanId: trip.vanId,
+    status: trip.status,
+    startedAt: trip.startedAt,
+    endedAt: trip.endedAt
+  });
+}
+
 export function emitStudentEvent(event) {
   // Allows service tests to run without starting Socket.IO.
   if (!io) return;

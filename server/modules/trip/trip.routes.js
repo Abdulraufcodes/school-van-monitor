@@ -9,14 +9,16 @@ import {
   startTripController,
   getActiveTripController,
   endTripController,
-  getLatestTripLocationController
+  getLatestTripLocationController,
+  getSchoolActiveTripLocationsController
 } from './trip.controller.js';
 
 import {
   startTripSchema,
   activeTripSchema,
   endTripSchema,
-  tripLocationSchema
+  tripLocationSchema,
+  schoolActiveTripLocationsSchema
 } from './trip.validation.js';
 
 export const tripRouter = Router();
@@ -58,6 +60,17 @@ function requireAdminSchoolForLocation(req, res, next) {
 
   return requireAdminSchool(req, res, next);
 }
+
+// School admin: retrieve all active trip locations for their school.
+// Keep this route before /:tripId/location to avoid route matching conflicts.
+tripRouter.get(
+  '/admin/locations',
+  authenticate,
+  authorize('admin'),
+  requireAdminSchool,
+  validate(schoolActiveTripLocationsSchema),
+  getSchoolActiveTripLocationsController
+);
 
 // Retrieve the latest location: parents and admins only.
 tripRouter.get(

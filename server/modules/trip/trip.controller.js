@@ -4,7 +4,8 @@ import {
   startTrip,
   getActiveTrip,
   endTrip,
-  getLatestTripLocation
+  getLatestTripLocation,
+  getSchoolActiveTripLocations
 } from './trip.service.js';
 
 // Start a trip for the authenticated driver.
@@ -69,6 +70,27 @@ export async function getLatestTripLocationController(req, res, next) {
       res,
       location,
       'Latest trip location retrieved successfully'
+    );
+  } catch (error) {
+    return next(error);
+  }
+}
+
+// Retrieve all active trip locations for the authenticated school admin.
+export async function getSchoolActiveTripLocationsController(
+  req,
+  res,
+  next
+) {
+  try {
+    const trips = await getSchoolActiveTripLocations({
+      schoolId: req.schoolId
+    });
+
+    return success(
+      res,
+      { trips },
+      'School active trip locations retrieved successfully'
     );
   } catch (error) {
     return next(error);

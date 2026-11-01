@@ -1,5 +1,4 @@
 import { io } from 'socket.io-client';
-import { io } from 'socket.io-client';
 
 const SERVER_URL = 'http://localhost:5000';
 
@@ -48,3 +47,14 @@ socket.on('connect_error', (error) => {
 socket.on('disconnect', (reason) => {
   console.log('Disconnected:', reason);
 });
+
+// Simulate a temporary network interruption after 5 seconds.
+setTimeout(() => {
+  console.log('\n--- Simulating disconnection ---');
+  socket.disconnect();
+
+  setTimeout(() => {
+    console.log('\n--- Simulating reconnection ---');
+    socket.connect();
+  }, 3000);
+}, 5000);

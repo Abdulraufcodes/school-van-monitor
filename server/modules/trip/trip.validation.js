@@ -37,3 +37,11 @@ export const tripLocationSchema = z.object({
   query: z.object({}).passthrough(),
   body: z.object({}).strict()
 });
+
+// This endpoint does not accept client-supplied school or trip IDs.
+// School scope comes from the authenticated admin middleware.
+export const schoolActiveTripLocationsSchema = z.object({
+  params: z.object({}),
+  query: z.object({}).passthrough(),
+  body: z.object({}).strict()
+});
