@@ -106,3 +106,82 @@ Relationships:
 - Add school/tenant scoping to every admin query.
 - Decide retention/deletion rules for GPS history and student records before launch.
 - Every school-owned resource must be queried within the authenticated user's school scope. Trip school ownership must match its van, and driver assignment must be verified independently.
+
+
+
+# Student Event and Pickup OTP Schema
+
+## StudentEvent
+
+The `StudentEvent` collection records student pickup and drop-off activity during a trip.
+
+### Fields
+
+| Field | Type | Description |
+|---|---|---|
+| schoolId | ObjectId | School associated with the event |
+| studentId | ObjectId | Student associated with the event |
+| tripId | ObjectId | Trip associated with the event |
+| vanId | ObjectId | Van associated with the event |
+| driverId | ObjectId | Driver who recorded the event |
+| type | String | `picked_up` or `dropped_off` |
+| occurredAt | Date | Server-generated event timestamp |
+| recordedAt | Date | Optional timestamp for recording context |
+| notes | String | Optional event notes |
+
+### Indexes
+
+| Index | Purpose |
+|---|---|
+| `{ tripId: 1, studentId: 1, type: 1 }` unique | Prevents duplicate pickup or drop-off events for a student on a trip |
+| Student history index | Supports student event history queries |
+| Trip history index | Supports trip event history queries |
+
+## PickupOtp
+
+The `PickupOtp` collection stores the current OTP for a student's pickup or drop-off on a trip.
+
+### Fields
+
+| Field | Type | Description |
+|---|---|---|
+| schoolId | ObjectId | School associated with the OTP |
+| tripId | ObjectId | Associated trip |
+| studentId | ObjectId | Associated student |
+| driverId | ObjectId | Driver requesting the OTP |
+| purpose | String | `pickup` or `dropoff` |
+| parentIds | ObjectId[] | Linked parent accounts receiving the OTP |
+| otpHash | String | HMAC hash of the OTP; excluded from normal queries |
+| expiresAt | Date | OTP expiry timestamp |
+| attempts | Number | Number of incorrect verification attempts |
+| consumedAt | Date | Timestamp when OTP was used; null until consumed |
+| lastSentAt | Date | Timestamp when OTP was last sent |
+
+### Indexes
+
+| Index | Purpose |
+|---|---|
+| `{ tripId: 1, studentId: 1, purpose: 1 }` unique | Allows one current OTP per purpose for each student and trip |
+| `{ expiresAt: 1 }` TTL | Automatically removes expired OTP records |
+
+### OTP Security Rules
+
+- OTP contains six cryptographically secure digits.
+- OTP expires after five minutes.
+- Maximum three incorrect attempts.
+- Resend cooldown is 60 seconds.
+- OTP can only be consumed once.
+- Only the HMAC hash is stored in the database.
+- OTP is tied to its school, trip, student, driver and purpose.
+- Separate OTP records are maintained for pickup and drop-off.
+
+### Event Workflow
+
+1. Driver requests a pickup OTP.
+2. Backend verifies trip, driver and student assignment.
+3. OTP is sent to linked active parents.
+4. Driver verifies the OTP.
+5. Backend records a `picked_up` event.
+6. Before drop-off, backend checks that pickup was recorded on the same trip.
+7. Driver requests and verifies a separate drop-off OTP.
+8. Backend records a `dropped_off` event.

@@ -92,23 +92,34 @@ export function attachSocketServer(httpServer) {
           });
         }
 
-        // The parent must be linked to at least one active student
-        // assigned to this exact van in this school.
-        const linkedStudent = await Student.exists({
+        // Find only active students linked to this parent
+        // and assigned to the van for this active trip.
+        const linkedStudents = await Student.find({
           schoolId: parent.schoolId,
           parentIds: parent._id,
           assignedVanId: trip.vanId,
           isActive: true
-        });
+        })
+          .select('_id')
+          .lean();
 
-        if (!linkedStudent) {
+        if (!linkedStudents.length) {
           return respond({
             success: false,
             code: 'TRIP_ACCESS_DENIED'
           });
         }
 
+        // Join the trip room for GPS updates.
         await socket.join(`trip:${String(trip._id)}`);
+
+        // Join individual student rooms for pickup/drop-off events.
+        // A parent can receive events only for their linked students.
+        const studentRooms = linkedStudents.map(
+          (student) => `student:${String(student._id)}`
+        );
+
+        await socket.join(studentRooms);
 
         return respond({
           success: true,
@@ -146,5 +157,18 @@ export function emitTripLocationUpdate(location) {
     longitude: location.longitude,
     recordedAt: location.recordedAt,
     receivedAt: location.receivedAt
+  });
+}
+
+export function emitStudentEvent(event) {
+  // Allows service tests to run without starting Socket.IO.
+  if (!io) return;
+
+  io.to(`student:${String(event.studentId)}`).emit('student:event', {
+    eventId: String(event._id),
+    studentId: String(event.studentId),
+    tripId: String(event.tripId),
+    type: event.type,
+    occurredAt: event.occurredAt
   });
 }
