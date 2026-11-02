@@ -157,7 +157,8 @@ export async function createSchoolVan({
     _id: assignedDriver,
     role: 'driver',
     schoolId,
-    isActive: true
+    isActive: true,
+    $or: [{ accountStatus: 'active' }, { accountStatus: { $exists: false } }]
   }).select('_id').lean();
 
   if (!driver) {
@@ -195,4 +196,19 @@ export async function createSchoolVan({
 
     throw error;
   }
+}
+
+export async function reassignSchoolVanDriver({ schoolId, vanId, assignedDriver }) {
+  const [van, driver] = await Promise.all([
+    Van.findOne({ _id: vanId, schoolId }),
+    User.findOne({ _id: assignedDriver, role: 'driver', schoolId, isActive: true, $or: [{ accountStatus: 'active' }, { accountStatus: { $exists: false } }] }).select('_id name email').lean()
+  ]);
+  if (!van) throw new AppError(404, 'VAN_NOT_FOUND', 'Van not found in this school');
+  if (!driver) throw new AppError(400, 'INVALID_DRIVER', 'Assigned driver must be an active driver who has activated their account in this school');
+  if (await Trip.exists({ schoolId, vanId: van._id, status: 'active' })) throw new AppError(409, 'VAN_HAS_ACTIVE_TRIP', 'End the van’s active trip before reassigning its driver');
+  if (await Trip.exists({ schoolId, driverId: driver._id, status: 'active' })) throw new AppError(409, 'DRIVER_HAS_ACTIVE_TRIP', 'The selected driver must finish their active trip before being assigned another van');
+  van.assignedDriver = driver._id;
+  van.isActive = true;
+  await van.save();
+  return { id: String(van._id), registrationNumber: van.registrationNumber, assignedDriver: { id: String(driver._id), name: driver.name, email: driver.email }, isActive: van.isActive };
 }

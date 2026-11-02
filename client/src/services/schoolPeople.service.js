@@ -15,6 +15,16 @@ export async function resendSchoolUserActivation(userId) {
   return response.data?.data;
 }
 
+export async function setSchoolUserActive(userId, isActive) {
+  const response = await api.patch(`/admin/users/${encodeURIComponent(userId)}/status`, { isActive });
+  return response.data?.data;
+}
+
+export async function setSchoolStudentActive(studentId, isActive) {
+  const response = await api.patch(`/admin/students/${encodeURIComponent(studentId)}/status`, { isActive });
+  return response.data?.data;
+}
+
 export async function createSchoolStudent(payload) {
   const response = await api.post('/admin/students', payload);
   return response.data?.data;

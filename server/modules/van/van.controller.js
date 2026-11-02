@@ -1,5 +1,5 @@
 import { success } from '../../src/utils/response.js';
-import {updateVanLocation,listSchoolVans,createSchoolVan} from './van.service.js';
+import {updateVanLocation,listSchoolVans,createSchoolVan,reassignSchoolVanDriver} from './van.service.js';
 
 export async function postVanLocation(req, res, next) {
   try {
@@ -42,6 +42,13 @@ export async function createSchoolVanController(req, res, next) {
   } catch (error) {
     return next(error);
   }
+}
+
+export async function reassignSchoolVanDriverController(req, res, next) {
+  try {
+    const result = await reassignSchoolVanDriver({ schoolId: req.schoolId, vanId: req.validated.params.vanId, assignedDriver: req.validated.body.assignedDriver });
+    return success(res, result, 'Van driver assignment updated');
+  } catch (error) { return next(error); }
 }
 
 

@@ -24,7 +24,8 @@ export async function listSchoolDrivers(schoolId) {
   return User.find({
     role: 'driver',
     isActive: true,
-    schoolId
+    schoolId,
+    $or: [{ accountStatus: 'active' }, { accountStatus: { $exists: false } }]
   })
     .select('_id name email')
     .sort({ name: 1 })
