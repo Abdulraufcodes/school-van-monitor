@@ -35,3 +35,9 @@ export const createVanSchema = z.object({
   }).strict()
 });
 
+export const updateVanDriverSchema = z.object({
+  params: z.object({ vanId: objectId }),
+  query: z.object({}).passthrough(),
+  body: z.object({ assignedDriver: objectId }).strict()
+});
+

@@ -1,5 +1,5 @@
 import { success } from '../../src/utils/response.js';
-import { createSchoolStudent, createSchoolUser, listSchoolPeople, updateSchoolStudentPickupLocation, updateStudentParents } from './admin.service.js';
+import { createSchoolStudent, createSchoolUser, listSchoolPeople, updateSchoolStudentPickupLocation, updateSchoolStudentStatus, updateSchoolUserStatus, updateStudentParents } from './admin.service.js';
 import { resendActivation } from '../auth/accountAccess.service.js';
 
 export async function listSchoolPeopleController(req, res, next) {
@@ -9,6 +9,16 @@ export async function listSchoolPeopleController(req, res, next) {
 
 export async function resendActivationController(req, res, next) {
   try { return success(res, await resendActivation(req.validated.params.userId, req.schoolId), 'Activation email sent'); }
+  catch (error) { return next(error); }
+}
+
+export async function updateSchoolUserStatusController(req, res, next) {
+  try { return success(res, await updateSchoolUserStatus({ schoolId: req.schoolId, userId: req.validated.params.userId, ...req.validated.body }), 'Account status updated'); }
+  catch (error) { return next(error); }
+}
+
+export async function updateSchoolStudentStatusController(req, res, next) {
+  try { return success(res, await updateSchoolStudentStatus({ schoolId: req.schoolId, studentId: req.validated.params.studentId, ...req.validated.body }), 'Student status updated'); }
   catch (error) { return next(error); }
 }
 

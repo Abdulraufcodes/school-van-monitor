@@ -17,6 +17,11 @@ export async function createVan(payload) {
   return response.data?.data;
 }
 
+export async function updateVanDriver(vanId, assignedDriver) {
+  const response = await api.patch(`/vans/${encodeURIComponent(vanId)}/driver`, { assignedDriver });
+  return response.data?.data;
+}
+
 export async function updateVanLocation(vanId, { latitude, longitude, recordedAt }) {
   const response = await api.post(`/vans/${encodeURIComponent(vanId)}/location`, {
     latitude,

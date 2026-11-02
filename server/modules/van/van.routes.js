@@ -5,13 +5,14 @@ import { requireAdminSchool } from '../../src/middleware/requireAdminSchool.js';
 import { validate } from '../../src/middleware/validate.js';
 // Middleware that limits how frequently each driver can submit GPS updates.
 import { gpsRateLimit } from '../../src/middleware/gpsRateLimit.js';
-import {postVanLocation,getSchoolVansController, createSchoolVanController} from './van.controller.js';
+import {postVanLocation,getSchoolVansController, createSchoolVanController, reassignSchoolVanDriverController} from './van.controller.js';
 
 import {
   locationUpdateSchema,
   listVansSchema,
   createVanSchema
 } from './van.validation.js';
+import { updateVanDriverSchema } from './van.validation.js';
 
 export const vanRouter = Router();
 
@@ -34,6 +35,8 @@ vanRouter.post(
   validate(createVanSchema),
   createSchoolVanController
 );
+
+vanRouter.patch('/:vanId/driver', authenticate, authorize('admin'), requireAdminSchool, validate(updateVanDriverSchema), reassignSchoolVanDriverController);
 
 // Drivers must be authenticated and authorized before rate limiting.
 // Validate the payload before the controller saves the GPS location.

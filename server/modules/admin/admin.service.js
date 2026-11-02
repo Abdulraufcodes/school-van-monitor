@@ -5,6 +5,9 @@ import User from '../auth/User.model.js';
 import Student from '../student/student.model.js';
 import { AppError } from '../../src/utils/AppError.js';
 import { issueAccountLink } from '../auth/accountAccess.service.js';
+import AccountToken from '../auth/accountToken.model.js';
+import { Trip } from '../trip/trip.model.js';
+import { Van } from '../van/van.model.js';
 
 export async function listSchoolPeople(schoolId) {
   const [users, students] = await Promise.all([
@@ -76,4 +79,37 @@ export async function updateStudentParents({ schoolId, studentId, parentEmails }
   student.parentIds = parents.map((parent) => parent._id);
   await student.save();
   return { id: String(student._id), parentEmails: parents.map((parent) => parent.email) };
+}
+
+export async function updateSchoolUserStatus({ schoolId, userId, isActive }) {
+  const user = await User.findOne({ _id: userId, schoolId, role: { $in: ['parent', 'driver'] } });
+  if (!user) throw new AppError(404, 'USER_NOT_FOUND', 'Parent or driver account not found');
+  if (isActive && user.accountStatus === 'pending_activation') {
+    user.isActive = true;
+    await user.save();
+    let invitationStatus = 'sent';
+    try { await issueAccountLink(user, 'activation'); } catch { invitationStatus = 'pending_delivery'; }
+    return { id: String(user._id), role: user.role, isActive: true, accountStatus: user.accountStatus, invitationStatus };
+  }
+  if (!isActive && user.role === 'driver') {
+    const activeTrip = await Trip.exists({ schoolId, driverId: user._id, status: 'active' });
+    if (activeTrip) throw new AppError(409, 'DRIVER_HAS_ACTIVE_TRIP', 'End the driver’s active trip before deactivating this account');
+    await Van.updateMany({ schoolId, assignedDriver: user._id, isActive: true }, { $set: { isActive: false } });
+  }
+  if (!isActive && user.role === 'parent') await Student.updateMany({ schoolId, parentIds: user._id }, { $pull: { parentIds: user._id } });
+  user.isActive = isActive;
+  await user.save();
+  if (!isActive) await AccountToken.updateMany({ userId: user._id, usedAt: null }, { $set: { usedAt: new Date() } });
+  return { id: String(user._id), role: user.role, isActive: user.isActive, accountStatus: user.accountStatus };
+}
+
+export async function updateSchoolStudentStatus({ schoolId, studentId, isActive }) {
+  const student = await Student.findOne({ _id: studentId, schoolId });
+  if (!student) throw new AppError(404, 'STUDENT_NOT_FOUND', 'Student not found');
+  if (!isActive && student.assignedVanId && await Trip.exists({ schoolId, vanId: student.assignedVanId, status: 'active' })) {
+    throw new AppError(409, 'STUDENT_HAS_ACTIVE_TRIP', 'Wait until the assigned van finishes its active trip before deactivating this student');
+  }
+  student.isActive = isActive;
+  await student.save();
+  return { id: String(student._id), isActive: student.isActive };
 }

@@ -44,3 +44,15 @@ export const resendActivationSchema = z.object({
   query: z.object({}).passthrough(),
   body: z.object({}).strict()
 });
+
+export const updateSchoolUserStatusSchema = z.object({
+  params: z.object({ userId: z.string().regex(/^[a-f\d]{24}$/i, 'Must be a valid ID') }),
+  query: z.object({}).passthrough(),
+  body: z.object({ isActive: z.boolean() }).strict()
+});
+
+export const updateStudentStatusSchema = z.object({
+  params: z.object({ studentId: z.string().regex(/^[a-f\d]{24}$/i, 'Must be a valid ID') }),
+  query: z.object({}).passthrough(),
+  body: z.object({ isActive: z.boolean() }).strict()
+});

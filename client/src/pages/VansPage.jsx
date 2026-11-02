@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DashboardLayout } from '../layouts/DashboardLayout.jsx';
 import { getDrivers } from '../services/driver.service.js';
-import { getVans } from '../services/van.service.js';
+import { getVans, updateVanDriver } from '../services/van.service.js';
 import { filterVans, findAssignedDriver } from '../utils/vanManagement.js';
 import { VanFormModal } from '../components/vans/VanFormModal.jsx';
 
@@ -16,7 +16,7 @@ function formatDate(value) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(date);
 }
 
-function VanCard({ van, drivers, driversLoading }) {
+function VanCard({ van, drivers, driversLoading, updating, onReassign }) {
   const driver = findAssignedDriver(van, drivers);
   const date = formatDate(van.createdAt);
   const activeLabel = van.isActive === true ? 'Active' : van.isActive === false ? 'Inactive' : 'Status unavailable';
@@ -37,6 +37,7 @@ function VanCard({ van, drivers, driversLoading }) {
         {driver
           ? <div className="mt-2"><p className="text-sm font-semibold text-slate-800">{driver.name}</p><p className="mt-0.5 break-all text-sm text-slate-500">{driver.email}</p></div>
           : <p className="mt-2 text-sm text-slate-500">{driversLoading ? 'Loading driver information…' : 'Driver information unavailable'}</p>}
+        <label className="mt-4 block text-sm font-medium text-slate-700">Reassign driver<select disabled={driversLoading || updating || !drivers.length} value={typeof van.assignedDriver === 'string' ? van.assignedDriver : van.assignedDriver?._id || ''} onChange={(event) => event.target.value && onReassign(van._id, event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm disabled:bg-slate-100"><option value="">Select an active driver</option>{drivers.map((item) => <option key={item._id} value={item._id}>{item.name} · {item.email}</option>)}</select><span className="mt-1 block text-xs font-normal text-slate-500">Reassignment is blocked while the van or selected driver has an active trip.</span></label>
         {date && <p className="mt-4 text-xs text-slate-500">Added {date}</p>}
       </div>
     </article>
@@ -52,6 +53,8 @@ export function VansPage() {
   const [driversError, setDriversError] = useState('');
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [updatingVanId, setUpdatingVanId] = useState('');
+  const [assignmentNotice, setAssignmentNotice] = useState('');
 
   const loadVans = useCallback(async () => {
     setVansLoading(true);
@@ -77,6 +80,13 @@ export function VansPage() {
     }
   }, []);
 
+  async function reassignDriver(vanId, driverId) {
+    setUpdatingVanId(vanId); setAssignmentNotice(''); setVansError('');
+    try { await updateVanDriver(vanId, driverId); setAssignmentNotice('Van driver assignment updated.'); await loadVans(); }
+    catch (error) { setVansError(error.response?.data?.message || 'The van driver could not be reassigned.'); }
+    finally { setUpdatingVanId(''); }
+  }
+
   useEffect(() => {
     loadVans();
     loadDrivers();
@@ -95,6 +105,7 @@ export function VansPage() {
       </section>
 
       {driversError && <div className="mb-5 flex flex-col justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 sm:flex-row sm:items-center"><div><p className="text-sm font-semibold text-rose-900">Driver information unavailable</p><p className="mt-1 text-sm text-rose-800">{driversError}</p></div><button type="button" onClick={loadDrivers} disabled={driversLoading} className="self-start rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-800 hover:bg-rose-100 disabled:opacity-50 sm:self-auto">{driversLoading ? 'Retrying…' : 'Retry'}</button></div>}
+      {assignmentNotice && <p className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800" role="status">{assignmentNotice}</p>}
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/30 sm:p-5" aria-label="Van list controls">
         <label htmlFor="van-search" className="mb-2 block text-sm font-medium text-slate-700">Search vans</label>
@@ -113,7 +124,7 @@ export function VansPage() {
 
         {!vansLoading && !vansError && vans.length > 0 && filteredVans.length === 0 && <div className="grid min-h-48 place-items-center rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center"><div><h2 className="text-base font-semibold text-slate-900">No vans match your search</h2><p className="mt-1 text-sm text-slate-600">Try another registration number, driver name, or email.</p></div></div>}
 
-        {!vansLoading && !vansError && filteredVans.length > 0 && <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">{filteredVans.map((van) => <VanCard key={van._id || `${van.registrationNumber}-${van.assignedDriver}`} van={van} drivers={drivers} driversLoading={driversLoading}/>)}</div>}
+        {!vansLoading && !vansError && filteredVans.length > 0 && <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">{filteredVans.map((van) => <VanCard key={van._id || `${van.registrationNumber}-${van.assignedDriver}`} van={van} drivers={drivers} driversLoading={driversLoading} updating={updatingVanId === van._id} onReassign={reassignDriver}/>)}</div>}
       </section>
 
       {modalOpen && <VanFormModal drivers={drivers} driversLoading={driversLoading} driversError={driversError} onRetryDrivers={loadDrivers} onClose={() => setModalOpen(false)} onCreated={loadVans}/>}
