@@ -20,6 +20,11 @@ export async function updateStudentPickupLocation(studentId, pickupLocation) {
   return response.data?.data;
 }
 
+export async function updateStudentParents(studentId, parentEmails) {
+  const response = await api.patch(`/admin/students/${encodeURIComponent(studentId)}/parents`, { parentEmails });
+  return response.data?.data;
+}
+
 export async function downloadRegistrationTemplate() {
   const response = await api.get('/admin/import/template', { responseType: 'blob' });
   return response.data;

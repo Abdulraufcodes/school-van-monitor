@@ -19,8 +19,8 @@ export const roleNavigation = Object.freeze({
   ],
   parent: [
     item('Dashboard', '/parent/dashboard'),
-    item('Live Tracking', '/parent/live-tracking', true),
-    item('Activity History', '/parent/activity-history', true)
+    item('Live Tracking', '/parent/live-tracking'),
+    item('Activity History', '/parent/activity-history')
   ]
 });
 

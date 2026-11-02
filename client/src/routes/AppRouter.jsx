@@ -13,6 +13,8 @@ import { DriversPage } from '../pages/DriversPage.jsx';
 import { StudentActivityPage } from '../pages/StudentActivityPage.jsx';
 import { PeoplePage } from '../pages/PeoplePage.jsx';
 import { BulkRegistrationPage } from '../pages/BulkRegistrationPage.jsx';
+import { ParentLiveTrackingPage } from '../pages/ParentLiveTrackingPage.jsx';
+import { ParentActivityHistoryPage } from '../pages/ParentActivityHistoryPage.jsx';
 
 export function AppRouter() {
   return (
@@ -36,6 +38,8 @@ export function AppRouter() {
         </Route>
         <Route element={<ProtectedRoute allowedRoles={['parent']} />}>
           <Route path="/parent/dashboard" element={<ParentDashboardPage />} />
+          <Route path="/parent/live-tracking" element={<ParentLiveTrackingPage />} />
+          <Route path="/parent/activity-history" element={<ParentActivityHistoryPage />} />
         </Route>
         <Route path="*" element={<NotFoundPage />} />
       </Routes>

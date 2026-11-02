@@ -118,6 +118,10 @@ The admin interface is available at `/dashboard/import`. Import remains disabled
 
 Admin-only and school-scoped. Returns school totals (`vans`, active `drivers`, active `trips`, active `students`), aggregate progress for students assigned to currently active trips, and the same progress by active trip. Pickup counts use verified morning-trip events; afternoon drop-off counts use verified afternoon-trip events. For afternoon trips, pending drop-off counts include students with a verified pickup who have not yet been dropped off. If there are no active trips, progress totals are zero while school resource totals remain available.
 
+### `GET /parents/me/students`
+
+Parent-only. Returns only active students linked to the authenticated parent, each with nullable active trip, van, driver, and latest saved location details. Location freshness is represented by `ageInSeconds` and `isStale`. The response is used to recover the parent's map state after reconnecting; live changes are sent over the separately authorized `trip:subscribe` socket event.
+
 ### `GET /notifications`
 
 Parent-only. Returns the authenticated parent's latest 50 persisted notifications with linked student, van, trip and timestamp details. A parent cannot specify another account or school in the request.
@@ -199,21 +203,15 @@ Drop-off requires a verified pickup event whose referenced trip is a `morning_pi
 
 
 
-## Planned endpoint contracts (not implemented yet)
+## Deferred endpoint contracts
 
-These are proposed endpoints to help the team split work. Treat them as design placeholders until implemented and tested.
+These features are outside the current functional scope and are not implemented yet.
 
 | Method | Path | Role | Purpose |
 |---|---|---|---|
-| POST | `/auth/register` | Admin / invitation flow | Create account under controlled onboarding |
-| POST | `/auth/refresh` | Authenticated session / refresh token | Rotate session tokens |
-| POST | `/auth/logout` | Authenticated | Revoke session |
-| GET | `/students/:studentId` | Parent/admin | Read student with ownership check |
-| POST | `/students` | Admin | Create student |
-| PATCH | `/vans/:vanId/assignment` | Admin | Assign driver / route |
-| GET | `/parents/me/students` | Parent | List only linked students |
-| GET | `/students/:studentId/trips/current` | Linked parent/admin | Current trip status |
-| GET | `/students/:studentId/events` | Linked parent/admin | Authorized event history |
+| POST | `/auth/refresh` | Authenticated session | Rotating refresh-token sessions |
+| POST | `/auth/logout` | Authenticated | Server-side token revocation |
+| PATCH | `/vans/:vanId/assignment` | Admin | Edit van/driver assignment after initial creation |
 
 ## Location endpoint details
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
+import { Link } from 'react-router-dom';
 import { DashboardLayout } from '../layouts/DashboardLayout.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { getParentNotifications } from '../services/notification.service.js';
@@ -36,7 +37,7 @@ export function ParentDashboardPage() {
   }, [accessToken, loadNotifications]);
 
   return <DashboardLayout title="Dashboard">
-    <section className="mb-6"><p className="text-sm font-medium text-cyan-700">Family workspace</p><h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">Pickup alerts</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">See when your child’s school van is approaching the saved pickup location.</p></section>
+    <section className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="text-sm font-medium text-cyan-700">Family workspace</p><h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">Pickup alerts</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">See when your child’s school van is approaching the saved pickup location.</p></div><Link to="/parent/live-tracking" className="rounded-xl bg-cyan-700 px-4 py-3 text-sm font-semibold text-white hover:bg-cyan-800">View live tracking</Link></section>
     {error && <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" role="status">{error}<button type="button" onClick={() => void loadNotifications()} className="ml-2 font-semibold underline">Retry</button></div>}
     <section className="space-y-3" aria-label="Pickup approach notifications" aria-live="polite">
       {loading && <p className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500" role="status">Loading alerts…</p>}

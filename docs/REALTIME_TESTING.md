@@ -47,22 +47,16 @@ Use the parent's development credentials. Save the returned access token as `PAR
 
 The parent must be linked to at least one active student assigned to the trip's van.
 
-## 5. Start the Socket.IO test client
+## 5. Start the Socket.IO smoke client
 
-Install the test client dependency if needed:
-
-```bash
-npm install socket.io-client
-```
-
-Run the `test-socket.js` client using the parent token and active trip ID.
+The repository includes `scripts/student-event-socket-client.mjs`, which uses the server's installed `socket.io-client` dependency and simulates a short disconnect/reconnect.
 
 PowerShell:
 
 ```powershell
 $env:PARENT_TOKEN="YOUR_PARENT_ACCESS_TOKEN"
 $env:TRIP_ID="YOUR_ACTIVE_TRIP_ID"
-node test-socket.js
+node scripts/student-event-socket-client.mjs
 ```
 
 Expected output includes:
@@ -70,6 +64,8 @@ Expected output includes:
 - `Connected`
 - `Authentication confirmed`
 - `Subscription response: { success: true }`
+
+The parent web dashboard also subscribes to its authenticated notification room. To exercise pickup alerts, set a fictional pickup point on the student, start an active morning pickup trip, and send a fresh GPS update from inside the configured radius. The alert is stored before it is emitted and remains visible after a reload.
 
 ## 6. Send a driver GPS update
 

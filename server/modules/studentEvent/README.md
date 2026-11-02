@@ -1,3 +1,3 @@
-# Student event module (planned)
+# Student event module
 
-Implement pickup/drop-off records. Events should be associated with a student, trip and authenticated driver. Verify active trip, student assignment and event transitions; define idempotency/duplicate handling. Store server-side event time and minimize optional notes.
+Student pickup and drop-off events are OTP-verified, school-scoped, tied to the authorized active trip and driver, and timestamped on the server. A morning pickup is required before afternoon drop-off. Duplicate events are rejected. Parent and admin history routes enforce linked-student and school ownership.

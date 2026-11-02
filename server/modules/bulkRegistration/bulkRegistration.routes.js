@@ -9,7 +9,7 @@ import { buildRegistrationTemplate, commitBulkRegistration, previewBulkRegistrat
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+  limits: { fileSize: 5 * 1024 * 1024, files: 1, fields: 0, parts: 1 },
   fileFilter: (_req, file, done) => {
     if (!/\.xlsx$/i.test(file.originalname)) return done(new AppError(400, 'INVALID_FILE_TYPE', 'Upload an .xlsx Excel file'));
     return done(null, true);
@@ -32,6 +32,7 @@ function parseUpload(req, res, next) {
   upload.single('file')(req, res, (error) => {
     if (!error) return next();
     if (error.code === 'LIMIT_FILE_SIZE') return next(new AppError(413, 'FILE_TOO_LARGE', 'Excel files must be 5 MB or smaller'));
+    if (error instanceof multer.MulterError) return next(new AppError(400, 'INVALID_FILE_UPLOAD', 'Upload exactly one Excel workbook in the file field'));
     return next(error);
   });
 }
