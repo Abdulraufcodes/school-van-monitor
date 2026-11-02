@@ -9,7 +9,7 @@ import { issueAccountLink } from '../auth/accountAccess.service.js';
 export async function listSchoolPeople(schoolId) {
   const [users, students] = await Promise.all([
     User.find({ schoolId, role: { $in: ['driver', 'parent'] } }).select('_id name email phone role isActive accountStatus createdAt').sort({ role: 1, name: 1 }).lean(),
-    Student.find({ schoolId }).select('_id name className parentIds pickupLocation isActive createdAt').populate({ path: 'parentIds', select: 'name email' }).sort({ name: 1 }).lean()
+    Student.find({ schoolId }).select('_id name className parentIds assignedVanId pickupLocation isActive createdAt').populate({ path: 'parentIds', select: 'name email' }).populate({ path: 'assignedVanId', select: 'registrationNumber assignedDriver', populate: { path: 'assignedDriver', select: 'name email' } }).sort({ name: 1 }).lean()
   ]);
   return { users, students };
 }

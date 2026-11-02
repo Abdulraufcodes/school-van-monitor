@@ -32,7 +32,7 @@ export async function activateAccount({ token, password }) {
 }
 
 export async function requestPasswordReset(email) {
-  const user = await User.findOne({ email: email.toLowerCase(), isActive: true, accountStatus: 'active' });
+  const user = await User.findOne({ email: email.toLowerCase(), isActive: true, $or: [{ accountStatus: 'active' }, { accountStatus: { $exists: false } }] });
   if (user) {
     try { await issueAccountLink(user, 'password_reset'); }
     catch (error) { console.error('Password reset email delivery failed'); }
@@ -45,7 +45,7 @@ export async function resetPassword({ token, password }) {
   if (!accountToken) throw new AppError(400, 'INVALID_OR_EXPIRED_LINK', 'This reset link is invalid or has expired. Request another link.');
   const consumed = await AccountToken.findOneAndUpdate({ _id: accountToken._id, usedAt: null, expiresAt: { $gt: new Date() } }, { $set: { usedAt: new Date() } }, { new: true });
   if (!consumed) throw new AppError(400, 'INVALID_OR_EXPIRED_LINK', 'This reset link is invalid or has expired. Request another link.');
-  const user = await User.findOneAndUpdate({ _id: accountToken.userId, isActive: true, accountStatus: 'active' }, { $set: { passwordHash: await bcrypt.hash(password, 12), passwordChangedAt: new Date() } }, { new: true });
+  const user = await User.findOneAndUpdate({ _id: accountToken.userId, isActive: true, $or: [{ accountStatus: 'active' }, { accountStatus: { $exists: false } }] }, { $set: { passwordHash: await bcrypt.hash(password, 12), accountStatus: 'active', passwordChangedAt: new Date() } }, { new: true });
   if (!user) throw new AppError(400, 'ACCOUNT_UNAVAILABLE', 'This account is unavailable.');
   await AccountToken.updateMany({ userId: user._id, purpose: 'password_reset', usedAt: null }, { $set: { usedAt: new Date() } });
   return { message: 'Password updated. You can now sign in.' };

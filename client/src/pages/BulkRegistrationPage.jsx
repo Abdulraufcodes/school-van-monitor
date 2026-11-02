@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { DashboardLayout } from '../layouts/DashboardLayout.jsx';
-import { commitRegistrationFile, downloadRegistrationTemplate, previewRegistrationFile } from '../services/schoolPeople.service.js';
+import { commitRegistrationFile, downloadRegistrationTemplate, getRosterImportHistory, previewRegistrationFile, resendRosterImportInvitations } from '../services/schoolPeople.service.js';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
@@ -25,6 +25,12 @@ export function BulkRegistrationPage() {
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [history, setHistory] = useState([]);
+
+  const loadHistory = useCallback(async () => {
+    try { setHistory(await getRosterImportHistory()); } catch { /* The roster upload still works if history is temporarily unavailable. */ }
+  }, []);
+  useEffect(() => { void loadHistory(); }, [loadHistory]);
 
   function selectFile(event) {
     const selected = event.target.files?.[0] || null;
@@ -46,8 +52,9 @@ export function BulkRegistrationPage() {
     setBusy('import'); setError(''); setNotice('');
     try {
       const result = await commitRegistrationFile(file);
-      setNotice(`Imported ${result.created.parents} parents, ${result.created.drivers} drivers, and ${result.created.students} students.`);
+      setNotice(`Imported ${result.created.parents} parents, ${result.created.drivers} drivers, ${result.created.students} students, and ${result.created.vans} vans. ${result.invitations.sent} of ${result.invitations.total} activation emails sent; ${result.invitations.failed} need retry.`);
       setFile(null); setPreview(null);
+      await loadHistory();
     } catch (cause) {
       const detail = getErrorMessage(cause);
       if (typeof detail === 'object') setPreview(detail);
@@ -62,6 +69,13 @@ export function BulkRegistrationPage() {
     finally { setBusy(''); }
   }
 
+  async function retryInvitations(importId) {
+    setBusy('retry'); setError(''); setNotice('');
+    try { const result = await resendRosterImportInvitations(importId); setNotice(`Sent ${result.sent} activation emails. ${result.failed} still need retry.`); await loadHistory(); }
+    catch (cause) { setError(getErrorMessage(cause)); }
+    finally { setBusy(''); }
+  }
+
   const errors = preview ? preview.fileErrors.length + preview.rows.reduce((count, row) => count + row.errors.length, 0) : 0;
 
   return <DashboardLayout title="Bulk registration">
@@ -69,15 +83,16 @@ export function BulkRegistrationPage() {
     {error && <div className="mb-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800" role="alert">{error}</div>}
     {notice && <div className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800" role="status">{notice}</div>}
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="text-lg font-semibold text-slate-950">1. Prepare the roster</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">Use the workbook template. Each row is one student, parent, or driver. Student rows link to parent emails, including parents added elsewhere in the same file.</p></div><button type="button" onClick={getTemplate} disabled={Boolean(busy)} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">{busy === 'template' ? 'Preparing…' : 'Download Excel template'}</button></div>
-      <div className="mt-5 grid gap-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-700 md:grid-cols-3"><p><strong>Parent/driver:</strong> name, email, and a 12+ character initial password.</p><p><strong>Student:</strong> name and one or more parent emails.</p><p><strong>Whole file:</strong> up to 500 rows and 5 MB; no partial imports.</p></div>
+      <div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="text-lg font-semibold text-slate-950">1. Prepare the roster</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">Use the workbook template. Each row is one student, parent, or driver. Student rows link parents, driver, and van; driver rows include the van registration they will operate.</p></div><button type="button" onClick={getTemplate} disabled={Boolean(busy)} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">{busy === 'template' ? 'Preparing…' : 'Download Excel template'}</button></div>
+      <div className="mt-5 grid gap-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-700 md:grid-cols-3"><p><strong>Parent/driver:</strong> name and email. They set a password using a 3-day activation link.</p><p><strong>Student:</strong> parent email(s), driver email, and van registration.</p><p><strong>Whole file:</strong> up to 500 rows and 5 MB; no partial imports. MongoDB transactions are required.</p></div>
       <div className="mt-6 border-t border-slate-100 pt-5"><h2 className="text-lg font-semibold text-slate-950">2. Upload and validate</h2><div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end"><label className="block flex-1 text-sm font-medium text-slate-700">Excel workbook<input type="file" accept=".xlsx" onChange={selectFile} className="mt-1 block w-full rounded-xl border border-slate-300 bg-white p-2.5 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-cyan-50 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-cyan-800"/><span className="mt-1 block text-xs font-normal text-slate-500">Maximum 5 MB. Import revalidates the same workbook before writing.</span></label><button type="button" onClick={getPreview} disabled={!file || Boolean(busy)} className="rounded-xl bg-cyan-700 px-5 py-3 text-sm font-semibold text-white hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50">{busy === 'preview' ? 'Checking workbook…' : 'Preview and validate'}</button></div></div>
     </section>
 
     {preview && <section className="mt-6 space-y-4" aria-live="polite">
       <div className={`rounded-2xl border p-5 ${preview.valid ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}><div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className={`text-lg font-semibold ${preview.valid ? 'text-emerald-950' : 'text-amber-950'}`}>{preview.valid ? 'Workbook ready to import' : 'Fix the preview errors before importing'}</h2><p className={`mt-1 text-sm ${preview.valid ? 'text-emerald-800' : 'text-amber-900'}`}>{preview.summary.totalRows} rows checked · {preview.summary.validRows} valid · {preview.summary.errorRows} rows with errors · {errors} total issues</p></div><button type="button" onClick={importAll} disabled={!preview.valid || Boolean(busy)} className="rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300">{busy === 'import' ? 'Importing all rows…' : 'Import all rows'}</button></div><p className="mt-3 text-xs text-slate-700">The server checks the uploaded workbook again before writing. If any row fails validation, nothing is imported.</p></div>
       {preview.fileErrors.length > 0 && <div className="rounded-2xl border border-rose-200 bg-white p-5"><h3 className="font-semibold text-rose-900">Workbook columns and file errors</h3><ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-rose-800">{preview.fileErrors.map((issue, index) => <li key={`${issue.column}-${index}`}><strong>{issue.column}:</strong> {issue.message}</li>)}</ul></div>}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="border-b border-slate-100 px-5 py-4"><h3 className="font-semibold text-slate-950">Row-by-row preview</h3></div><div className="overflow-x-auto"><table className="min-w-full text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-4 py-3">Excel row</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Name / email</th><th className="px-4 py-3">Validation</th></tr></thead><tbody className="divide-y divide-slate-100">{preview.rows.map((row) => <tr key={row.rowNumber} className={row.errors.length ? 'bg-rose-50/60' : ''}><td className="whitespace-nowrap px-4 py-3 font-mono">{row.rowNumber}</td><td className="px-4 py-3 capitalize">{row.recordType || '—'}</td><td className="px-4 py-3"><p className="font-medium text-slate-800">{row.name || '—'}</p><p className="mt-0.5 break-all text-xs text-slate-500">{row.email || row.parentEmails.join(', ') || '—'}</p></td><td className="min-w-72 px-4 py-3">{row.errors.length ? <ul className="space-y-1 text-rose-800">{row.errors.map((issue, index) => <li key={`${issue.column}-${index}`}><strong>{issue.column}:</strong> {issue.message}</li>)}</ul> : <span className="font-medium text-emerald-700">Ready</span>}</td></tr>)}</tbody></table></div></div>
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="border-b border-slate-100 px-5 py-4"><h3 className="font-semibold text-slate-950">Row-by-row preview</h3></div><div className="overflow-x-auto"><table className="min-w-full text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-4 py-3">Excel row</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Name / email</th><th className="px-4 py-3">Assignment</th><th className="px-4 py-3">Validation</th></tr></thead><tbody className="divide-y divide-slate-100">{preview.rows.map((row) => <tr key={row.rowNumber} className={row.errors.length ? 'bg-rose-50/60' : ''}><td className="whitespace-nowrap px-4 py-3 font-mono">{row.rowNumber}</td><td className="px-4 py-3 capitalize">{row.recordType || '—'}</td><td className="px-4 py-3"><p className="font-medium text-slate-800">{row.name || '—'}</p><p className="mt-0.5 break-all text-xs text-slate-500">{row.email || row.parentEmails.join(', ') || '—'}</p></td><td className="px-4 py-3 text-xs"><p>{row.driverEmail || '—'}</p><p className="mt-1">{row.vanRegistration || '—'}</p></td><td className="min-w-72 px-4 py-3">{row.errors.length ? <ul className="space-y-1 text-rose-800">{row.errors.map((issue, index) => <li key={`${issue.column}-${index}`}><strong>{issue.column}:</strong> {issue.message}</li>)}</ul> : <span className="font-medium text-emerald-700">Ready</span>}</td></tr>)}</tbody></table></div></div>
     </section>}
+    <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold text-slate-950">Import history</h2><p className="mt-1 text-sm text-slate-600">Review completed uploads and retry activation emails that could not be delivered.</p></div><button type="button" onClick={() => void loadHistory()} disabled={Boolean(busy)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold">Refresh</button></div>{history.length ? <div className="mt-4 space-y-3">{history.map((item) => { const pending = item.invitations?.filter((invite) => invite.status !== 'sent' && invite.status !== 'not_needed') || []; return <article key={item._id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 p-4"><div><p className="text-sm font-semibold">{new Date(item.createdAt).toLocaleString()}</p><p className="mt-1 text-xs text-slate-600">{item.created.students} students · {item.created.parents} parents · {item.created.drivers} drivers · {item.created.vans} vans · {item.invitations?.filter((invite) => invite.status === 'sent').length || 0}/{item.invitations?.length || 0} invitations sent</p></div>{pending.length > 0 && <button type="button" disabled={Boolean(busy)} onClick={() => void retryInvitations(item._id)} className="rounded-lg bg-cyan-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy === 'retry' ? 'Retrying…' : `Retry ${pending.length} invitations`}</button>}</article>; })}</div> : <p className="mt-4 text-sm text-slate-500">No imports have been recorded.</p>}</section>
   </DashboardLayout>;
 }

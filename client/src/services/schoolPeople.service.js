@@ -48,3 +48,13 @@ export async function commitRegistrationFile(file) {
   const response = await api.post('/admin/import/commit', form, { headers: { 'Content-Type': 'multipart/form-data' } });
   return response.data?.data;
 }
+
+export async function getRosterImportHistory() {
+  const response = await api.get('/admin/import/history');
+  return response.data?.data || [];
+}
+
+export async function resendRosterImportInvitations(importId) {
+  const response = await api.post(`/admin/import/history/${encodeURIComponent(importId)}/resend-invitations`);
+  return response.data?.data;
+}
