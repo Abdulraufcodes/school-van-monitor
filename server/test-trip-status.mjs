@@ -1,6 +1,9 @@
 import { io } from 'socket.io-client';
 
-const PARENT_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicGFyZW50IiwiaWF0IjoxNzkzNTQxNjE5LCJleHAiOjE3OTM1NDI1MTksInN1YiI6IjZhZTBiNTlhNDg4NDAyMTNkNDhkMGU5MyJ9.1Se-swpkUnXq3-ggxLc_duvOY52VGdgX6732WBaE8kE';
+const PARENT_TOKEN = process.env.TEST_PARENT_TOKEN;
+if (!PARENT_TOKEN) {
+  throw new Error("TEST_PARENT_TOKEN is not configured");
+}
 const TRIP_ID = '6ae745acfb028b6294708f6a';
 
 const socket = io('http://localhost:5000', {
