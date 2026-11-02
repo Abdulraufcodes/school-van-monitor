@@ -9,6 +9,7 @@ function NavigationIcon({ name }) {
     Students: <><circle cx="9" cy="8" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1M16 5a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 5v1"/></>,
     Drivers: <><circle cx="12" cy="7" r="4"/><path d="M4 21a8 8 0 0 1 16 0M12 11v5m-3-3h6"/></>,
     Parents: <><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2"/><path d="M3 20a6 6 0 0 1 12 0m1-5a5 5 0 0 1 5 5"/></>,
+    People: <><circle cx="9" cy="8" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1M16 5a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 5v1"/></>,
     Reports: <><path d="M5 3h10l4 4v14H5zM15 3v5h4M8 12h8m-8 4h8"/></>,
     'My Trip': <><path d="M3 12h18M12 3l9 9-9 9"/><circle cx="5" cy="12" r="2"/></>,
     'Student Roster': <><path d="M8 6h13M8 12h13M8 18h13"/><path d="m3 6 1 1 2-2m-3 7 1 1 2-2m-3 7 1 1 2-2"/></>,

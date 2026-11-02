@@ -1,0 +1,21 @@
+import { success } from '../../src/utils/response.js';
+import { createSchoolStudent, createSchoolUser, listSchoolPeople, updateStudentParents } from './admin.service.js';
+
+export async function listSchoolPeopleController(req, res) {
+  return success(res, await listSchoolPeople(req.schoolId), 'School people retrieved successfully');
+}
+
+export async function createSchoolUserController(req, res) {
+  const user = await createSchoolUser({ schoolId: req.schoolId, ...req.validated.body });
+  return success(res, user, 'Account created successfully', 201);
+}
+
+export async function createSchoolStudentController(req, res) {
+  const student = await createSchoolStudent({ schoolId: req.schoolId, ...req.validated.body });
+  return success(res, student, 'Student created successfully', 201);
+}
+
+export async function updateStudentParentsController(req, res) {
+  const student = await updateStudentParents({ schoolId: req.schoolId, studentId: req.validated.params.studentId, ...req.validated.body });
+  return success(res, student, 'Student parent links updated successfully');
+}

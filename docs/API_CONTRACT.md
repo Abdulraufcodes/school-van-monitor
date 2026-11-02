@@ -91,6 +91,17 @@ Returns HTTP `200` with the standard success envelope. `data` is an array contai
 
 Unauthenticated requests receive `401 UNAUTHENTICATED`. Non-admin roles receive `403 FORBIDDEN`. An admin without a valid active school association receives `403 SCHOOL_ACCESS_DENIED`.
 
+### School people management
+
+All routes below require an authenticated admin with an active school association. The school is derived from the admin account; submitted school IDs are not accepted.
+
+- `GET /admin/people` returns the admin school's parent and driver accounts plus students and their linked parent names/emails.
+- `POST /admin/users` creates an active `parent` or `driver` account. Required fields: `name`, `email`, `password` (minimum 12 characters), and `role`; `phone` is optional. The initial password is selected by the admin and must be shared securely with the account holder. Duplicate email returns `409 EMAIL_ALREADY_EXISTS`. Admin role creation is not supported by this endpoint.
+- `POST /admin/students` creates a student with `name`, optional `className`, and one or more `parentEmails`. Every parent email must resolve to an active parent in the same school; otherwise the request fails without creating the student.
+- `PATCH /admin/students/:studentId/parents` replaces a student's linked parents. `parentEmails` must contain one or more active parent emails from the same school. Students outside the admin's school are returned as not found.
+
+The admin people interface is available at `/dashboard/people`.
+
 
 ### `GET /drivers/me/vans`
 

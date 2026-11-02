@@ -4,6 +4,7 @@ import { success } from './utils/response.js';
 import { authRouter } from '../modules/auth/auth.routes.js';
 import { tripRouter } from '../modules/trip/trip.routes.js';
 import { driverRouter } from '../modules/driver/driver.routes.js';
+import { adminRouter } from '../modules/admin/admin.routes.js';
 
 export const apiRouter = Router();
 
@@ -17,3 +18,4 @@ apiRouter.use('/auth', authRouter);
 apiRouter.use('/trips', tripRouter);
 
 apiRouter.use('/drivers', driverRouter);
+apiRouter.use('/admin', adminRouter);
