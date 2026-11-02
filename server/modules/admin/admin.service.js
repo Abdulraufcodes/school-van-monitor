@@ -8,6 +8,7 @@ import { issueAccountLink } from '../auth/accountAccess.service.js';
 import AccountToken from '../auth/accountToken.model.js';
 import { Trip } from '../trip/trip.model.js';
 import { Van } from '../van/van.model.js';
+import School from '../school/school.model.js';
 
 export async function listSchoolPeople(schoolId) {
   const [users, students] = await Promise.all([
@@ -112,4 +113,18 @@ export async function updateSchoolStudentStatus({ schoolId, studentId, isActive 
   student.isActive = isActive;
   await student.save();
   return { id: String(student._id), isActive: student.isActive };
+}
+
+export async function getPickupAlertSettings(schoolId) {
+  const school = await School.findById(schoolId).select('pickupAlertSettings');
+  if (!school) throw new AppError(404, 'SCHOOL_NOT_FOUND', 'School not found');
+  return school.pickupAlertSettings?.toObject() ?? { enabled: true, radiusMeters: 500, minimumApproachMeters: 10, maxLocationAgeSeconds: 60 };
+}
+
+export async function updatePickupAlertSettings({ schoolId, settings }) {
+  const school = await School.findById(schoolId);
+  if (!school) throw new AppError(404, 'SCHOOL_NOT_FOUND', 'School not found');
+  school.pickupAlertSettings = settings;
+  await school.save();
+  return school.pickupAlertSettings.toObject();
 }

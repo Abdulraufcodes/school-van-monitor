@@ -17,6 +17,7 @@ import { ParentLiveTrackingPage } from '../pages/ParentLiveTrackingPage.jsx';
 import { ParentActivityHistoryPage } from '../pages/ParentActivityHistoryPage.jsx';
 import { AccountLinkPage } from '../pages/AccountLinkPage.jsx';
 import { ChangePasswordPage } from '../pages/ChangePasswordPage.jsx';
+import { AlertSettingsPage } from '../pages/AlertSettingsPage.jsx';
 
 export function AppRouter() {
   return (
@@ -37,6 +38,7 @@ export function AppRouter() {
           <Route path="/dashboard/student-activity" element={<StudentActivityPage />} />
           <Route path="/dashboard/people" element={<PeoplePage />} />
           <Route path="/dashboard/import" element={<BulkRegistrationPage />} />
+          <Route path="/dashboard/alert-settings" element={<AlertSettingsPage />} />
         </Route>
         <Route element={<ProtectedRoute allowedRoles={['driver']} />}>
           <Route path="/driver/dashboard" element={<DriverDashboardPage />} />

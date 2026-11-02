@@ -56,3 +56,14 @@ export const updateStudentStatusSchema = z.object({
   query: z.object({}).passthrough(),
   body: z.object({ isActive: z.boolean() }).strict()
 });
+
+export const pickupAlertSettingsSchema = z.object({
+  params: z.object({}),
+  query: z.object({}).passthrough(),
+  body: z.object({
+    enabled: z.boolean(),
+    radiusMeters: z.number().int().min(100).max(5000),
+    minimumApproachMeters: z.number().int().min(10).max(1000),
+    maxLocationAgeSeconds: z.number().int().min(15).max(3600)
+  }).strict()
+});
