@@ -113,6 +113,10 @@ The roster sheet uses these columns: `record_type`, `name`, `email`, `password`,
 
 The admin interface is available at `/dashboard/import`. Import remains disabled in the UI until a preview has no errors; the server independently enforces the same all-or-nothing validation rule.
 
+### `GET /dashboard/summary`
+
+Admin-only and school-scoped. Returns school totals (`vans`, active `drivers`, active `trips`, active `students`), aggregate progress for students assigned to currently active trips, and the same progress by active trip. Pickup counts use verified morning-trip events; afternoon drop-off counts use verified afternoon-trip events. For afternoon trips, pending drop-off counts include students with a verified pickup who have not yet been dropped off. If there are no active trips, progress totals are zero while school resource totals remain available.
+
 
 ### `GET /drivers/me/vans`
 
