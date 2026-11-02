@@ -12,6 +12,7 @@ import { LiveTrackingPage } from '../pages/LiveTrackingPage.jsx';
 import { DriversPage } from '../pages/DriversPage.jsx';
 import { StudentActivityPage } from '../pages/StudentActivityPage.jsx';
 import { PeoplePage } from '../pages/PeoplePage.jsx';
+import { BulkRegistrationPage } from '../pages/BulkRegistrationPage.jsx';
 
 export function AppRouter() {
   return (
@@ -27,6 +28,7 @@ export function AppRouter() {
           <Route path="/dashboard/drivers" element={<DriversPage />} />
           <Route path="/dashboard/student-activity" element={<StudentActivityPage />} />
           <Route path="/dashboard/people" element={<PeoplePage />} />
+          <Route path="/dashboard/import" element={<BulkRegistrationPage />} />
         </Route>
         <Route element={<ProtectedRoute allowedRoles={['driver']} />}>
           <Route path="/driver/dashboard" element={<DriverDashboardPage />} />

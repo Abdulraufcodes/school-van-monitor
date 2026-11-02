@@ -8,6 +8,7 @@ export const roleNavigation = Object.freeze({
     item('Students', '/dashboard/student-activity'),
     item('Drivers', '/dashboard/drivers'),
     item('People', '/dashboard/people'),
+    item('Bulk Import', '/dashboard/import'),
     item('Reports', '/dashboard/reports', true)
   ],
   driver: [

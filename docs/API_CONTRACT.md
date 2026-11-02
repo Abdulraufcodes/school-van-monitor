@@ -102,6 +102,17 @@ All routes below require an authenticated admin with an active school associatio
 
 The admin people interface is available at `/dashboard/people`.
 
+### Bulk school registration
+
+All routes require an authenticated admin with an active school association. Uploads are limited to one `.xlsx` file, up to 5 MB and 500 non-empty rows. Download the workbook template from `GET /admin/import/template`.
+
+The roster sheet uses these columns: `record_type`, `name`, `email`, `password`, `phone`, `class_name`, `parent_emails`. `record_type` is `student`, `parent`, or `driver`. Parent/driver rows require an email and an initial password of 12–128 characters. Student rows require one or more parent emails, separated by commas, semicolons, or line breaks. Parent accounts may be in the same workbook or already exist in the admin's school. Student rows must leave account-only columns blank; account rows must leave student-only columns blank.
+
+- `POST /admin/import/preview` accepts multipart form data with file field `file`. It returns file-level column errors, every row's validation errors, and valid/error row counts. It never writes records.
+- `POST /admin/import/commit` accepts the same workbook and repeats all validation against current school data. If any error exists, the request fails and no rows are imported. If valid, it creates all accounts and students and links parent accounts. A database write failure triggers cleanup of records created by that request.
+
+The admin interface is available at `/dashboard/import`. Import remains disabled in the UI until a preview has no errors; the server independently enforces the same all-or-nothing validation rule.
+
 
 ### `GET /drivers/me/vans`
 
