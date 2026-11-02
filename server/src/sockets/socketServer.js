@@ -135,6 +135,22 @@ export function attachSocketServer(httpServer) {
         });
       }
     });
+
+    socket.on('notifications:subscribe', async (_payload = {}, ack) => {
+      const respond = typeof ack === 'function' ? ack : () => {};
+      try {
+        const authenticatedUser = socket.data.user;
+        if (authenticatedUser.role !== 'parent') return respond({ success: false, code: 'FORBIDDEN' });
+        const parent = await User.findOne({ _id: authenticatedUser.id, role: 'parent', isActive: true })
+          .select('_id schoolId').lean();
+        if (!parent?.schoolId) return respond({ success: false, code: 'FORBIDDEN' });
+        await socket.join(`parent:${String(parent._id)}`);
+        return respond({ success: true });
+      } catch (error) {
+        console.error('Notification subscription failed:', error.message);
+        return respond({ success: false, code: 'SUBSCRIPTION_FAILED' });
+      }
+    });
   });
 
   return io;
@@ -187,4 +203,9 @@ export function emitStudentEvent(event) {
     type: event.type,
     occurredAt: event.occurredAt
   });
+}
+
+export function emitPickupApproachNotification(notification, parentId) {
+  if (!io) return;
+  io.to(`parent:${parentId}`).emit('notification:new', notification);
 }

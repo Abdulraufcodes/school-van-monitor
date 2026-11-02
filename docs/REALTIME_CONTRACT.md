@@ -1,6 +1,6 @@
 # Socket.IO / Real-Time Contract
 
-This is the proposed event contract; live parent-room subscription and location event broadcasting are not wired end-to-end in this scaffold yet.
+This contract documents the implemented authenticated parent subscriptions, location broadcasts, student events, and pickup approach alerts.
 
 ## Transport and authentication
 
@@ -14,6 +14,7 @@ This is the proposed event contract; live parent-room subscription and location 
 
 - `van:<vanId>`: only assigned driver and authorized parent/admin sessions may subscribe.
 - `trip:<tripId>`: only users permitted to see that trip.
+- `parent:<parentId>`: only the matching active parent account may subscribe for its notification feed.
 - Room membership must be granted server-side after verifying assignment/parent linkage.
 
 ## Parent subscription
@@ -35,6 +36,8 @@ the location record has been persisted successfully.
 
 Clients must not be allowed to join arbitrary rooms.
 
+Parents subscribe to their own notification room using `notifications:subscribe` with an empty payload. The server reloads the active parent from the database and derives the room ID from that account. The client cannot choose a parent or room ID.
+
 ## Events
 
 | Direction | Event | Payload |
@@ -43,7 +46,8 @@ Clients must not be allowed to join arbitrary rooms.
 | Server → authorized room | `location:updated` | `{ vanId, tripId, latitude, longitude, recordedAt, receivedAt }` |
 | Server → authorized room | `trip:status` | `{ tripId, vanId, status, tripType, serviceDate, startedAt?, endedAt? }` |
 | Server → authorized room | `student:event` | `{ eventId, studentId, tripId, type, occurredAt }` |
-| Server → parent session | `notification:near-home` | `{ studentId, tripId, etaSeconds?, generatedAt }` |
+| Parent client → server | `notifications:subscribe` | `{}`; the server acknowledges success or a failure code |
+| Server → linked parent room | `notification:new` | `{ notificationId, studentId, studentName, tripId, vanId, distanceMeters, occurredAt }` |
 
 ## Rules
 
@@ -57,3 +61,6 @@ Clients must not be allowed to join arbitrary rooms.
 - `trip:status` includes the trip's `tripType` and school-local `serviceDate`; legacy trip values may be `null`.
 - UI must show `Last updated ...` and a stale/offline state if no update arrives within the agreed threshold.
 - Do not emit precise location to unauthorized users or log it unnecessarily.
+- Pickup approach alerts are evaluated only for fresh GPS updates on active morning pickup trips and only for students assigned to that van with a saved pickup point.
+- The initial radius is configurable with `PICKUP_ALERT_RADIUS_METERS` (default 500 metres); stale location age uses `LOCATION_STALE_THRESHOLD_SECONDS` (default 60 seconds).
+- Persist each alert before emitting it. The unique notification key prevents duplicate alerts to the same linked parent for one student's trip.

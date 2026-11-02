@@ -7,6 +7,7 @@ import { driverRouter } from '../modules/driver/driver.routes.js';
 import { adminRouter } from '../modules/admin/admin.routes.js';
 import { bulkRegistrationRouter } from '../modules/bulkRegistration/bulkRegistration.routes.js';
 import { dashboardRouter } from '../modules/dashboard/dashboard.routes.js';
+import { parentNotificationRouter } from '../modules/notification/parentNotification.routes.js';
 
 export const apiRouter = Router();
 
@@ -23,3 +24,4 @@ apiRouter.use('/drivers', driverRouter);
 apiRouter.use('/admin', adminRouter);
 apiRouter.use('/admin/import', bulkRegistrationRouter);
 apiRouter.use('/dashboard', dashboardRouter);
+apiRouter.use('/notifications', parentNotificationRouter);

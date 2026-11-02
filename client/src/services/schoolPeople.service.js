@@ -15,6 +15,11 @@ export async function createSchoolStudent(payload) {
   return response.data?.data;
 }
 
+export async function updateStudentPickupLocation(studentId, pickupLocation) {
+  const response = await api.patch(`/admin/students/${encodeURIComponent(studentId)}/pickup-location`, { pickupLocation });
+  return response.data?.data;
+}
+
 export async function downloadRegistrationTemplate() {
   const response = await api.get('/admin/import/template', { responseType: 'blob' });
   return response.data;

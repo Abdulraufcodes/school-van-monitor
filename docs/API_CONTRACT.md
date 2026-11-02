@@ -99,6 +99,7 @@ All routes below require an authenticated admin with an active school associatio
 - `POST /admin/users` creates an active `parent` or `driver` account. Required fields: `name`, `email`, `password` (minimum 12 characters), and `role`; `phone` is optional. The initial password is selected by the admin and must be shared securely with the account holder. Duplicate email returns `409 EMAIL_ALREADY_EXISTS`. Admin role creation is not supported by this endpoint.
 - `POST /admin/students` creates a student with `name`, optional `className`, and one or more `parentEmails`. Every parent email must resolve to an active parent in the same school; otherwise the request fails without creating the student.
 - `PATCH /admin/students/:studentId/parents` replaces a student's linked parents. `parentEmails` must contain one or more active parent emails from the same school. Students outside the admin's school are returned as not found.
+- Student creation may include both `pickupLatitude` (`-90..90`) and `pickupLongitude` (`-180..180`); supply both or neither. `PATCH /admin/students/:studentId/pickup-location` accepts `{ "pickupLocation": { "latitude": 22.3, "longitude": 72.6 } }` or `{ "pickupLocation": null }` to clear the location.
 
 The admin people interface is available at `/dashboard/people`.
 
@@ -106,7 +107,7 @@ The admin people interface is available at `/dashboard/people`.
 
 All routes require an authenticated admin with an active school association. Uploads are limited to one `.xlsx` file, up to 5 MB and 500 non-empty rows. Download the workbook template from `GET /admin/import/template`.
 
-The roster sheet uses these columns: `record_type`, `name`, `email`, `password`, `phone`, `class_name`, `parent_emails`. `record_type` is `student`, `parent`, or `driver`. Parent/driver rows require an email and an initial password of 12–128 characters. Student rows require one or more parent emails, separated by commas, semicolons, or line breaks. Parent accounts may be in the same workbook or already exist in the admin's school. Student rows must leave account-only columns blank; account rows must leave student-only columns blank.
+The roster sheet uses these columns: `record_type`, `name`, `email`, `password`, `phone`, `class_name`, `parent_emails`, `pickup_latitude`, `pickup_longitude`. `record_type` is `student`, `parent`, or `driver`. Parent/driver rows require an email and an initial password of 12–128 characters. Student rows require one or more parent emails, separated by commas, semicolons, or line breaks. Parent accounts may be in the same workbook or already exist in the admin's school. Student rows may include both pickup coordinates or leave both blank. Account rows must leave student-only columns blank.
 
 - `POST /admin/import/preview` accepts multipart form data with file field `file`. It returns file-level column errors, every row's validation errors, and valid/error row counts. It never writes records.
 - `POST /admin/import/commit` accepts the same workbook and repeats all validation against current school data. If any error exists, the request fails and no rows are imported. If valid, it creates all accounts and students and links parent accounts. A database write failure triggers cleanup of records created by that request.
@@ -116,6 +117,10 @@ The admin interface is available at `/dashboard/import`. Import remains disabled
 ### `GET /dashboard/summary`
 
 Admin-only and school-scoped. Returns school totals (`vans`, active `drivers`, active `trips`, active `students`), aggregate progress for students assigned to currently active trips, and the same progress by active trip. Pickup counts use verified morning-trip events; afternoon drop-off counts use verified afternoon-trip events. For afternoon trips, pending drop-off counts include students with a verified pickup who have not yet been dropped off. If there are no active trips, progress totals are zero while school resource totals remain available.
+
+### `GET /notifications`
+
+Parent-only. Returns the authenticated parent's latest 50 persisted notifications with linked student, van, trip and timestamp details. A parent cannot specify another account or school in the request.
 
 
 ### `GET /drivers/me/vans`

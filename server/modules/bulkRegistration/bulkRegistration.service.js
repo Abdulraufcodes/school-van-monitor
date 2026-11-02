@@ -5,7 +5,7 @@ import User from '../auth/User.model.js';
 import Student from '../student/student.model.js';
 import { AppError } from '../../src/utils/AppError.js';
 
-const HEADERS = ['record_type', 'name', 'email', 'password', 'phone', 'class_name', 'parent_emails'];
+const HEADERS = ['record_type', 'name', 'email', 'password', 'phone', 'class_name', 'parent_emails', 'pickup_latitude', 'pickup_longitude'];
 const MAX_ROWS = 500;
 const PASSWORD_MIN = 12;
 
@@ -23,6 +23,8 @@ export async function buildRegistrationTemplate() {
     ['phone', 'Optional for parent and driver; leave blank for student'],
     ['class_name', 'Optional for student; leave blank for parent and driver'],
     ['parent_emails', 'Required for student. Separate multiple parent emails with commas. Parents may be listed in this file or already exist in the school.'],
+    ['pickup_latitude', 'Optional student pickup location latitude from -90 to 90. Leave blank if unknown.'],
+    ['pickup_longitude', 'Optional student pickup location longitude from -180 to 180. Provide together with pickup_latitude.'],
     ['Import rule', 'The entire workbook must validate before any row is imported.']
   ]);
   instructions['!cols'] = [{ wch: 22 }, { wch: 105 }];
@@ -72,7 +74,9 @@ export async function validateBulkRegistration({ buffer, schoolId }) {
     password: cleanCell(values.password),
     phone: cleanCell(values.phone),
     class_name: cleanCell(values.class_name),
-    parent_emails: cleanCell(values.parent_emails).split(/[\n,;]+/).map((email) => email.trim().toLowerCase()).filter(Boolean)
+    parent_emails: cleanCell(values.parent_emails).split(/[\n,;]+/).map((email) => email.trim().toLowerCase()).filter(Boolean),
+    pickup_latitude: cleanCell(values.pickup_latitude),
+    pickup_longitude: cleanCell(values.pickup_longitude)
   }));
   const addError = (row, column, message) => errorsByRow.get(row).push({ column, message });
 
@@ -85,12 +89,16 @@ export async function validateBulkRegistration({ buffer, schoolId }) {
       if (row.class_name.length > 50) addError(row.rowNumber, 'class_name', 'Class must be 50 characters or fewer');
       if (!row.parent_emails.length) addError(row.rowNumber, 'parent_emails', 'At least one parent email is required');
       if (row.parent_emails.length > 5) addError(row.rowNumber, 'parent_emails', 'A student can have at most 5 parent emails');
+      if (Boolean(row.pickup_latitude) !== Boolean(row.pickup_longitude)) addError(row.rowNumber, 'pickup_latitude', 'Provide both pickup coordinates or leave both blank');
+      if (row.pickup_latitude && (!Number.isFinite(Number(row.pickup_latitude)) || Number(row.pickup_latitude) < -90 || Number(row.pickup_latitude) > 90)) addError(row.rowNumber, 'pickup_latitude', 'Latitude must be a number from -90 to 90');
+      if (row.pickup_longitude && (!Number.isFinite(Number(row.pickup_longitude)) || Number(row.pickup_longitude) < -180 || Number(row.pickup_longitude) > 180)) addError(row.rowNumber, 'pickup_longitude', 'Longitude must be a number from -180 to 180');
     } else if (row.record_type === 'parent' || row.record_type === 'driver') {
       if (!validEmail(row.email) || row.email.length > 254) addError(row.rowNumber, 'email', 'Enter a valid email address (254 characters maximum)');
       if (!row.password || row.password.length < PASSWORD_MIN || row.password.length > 128) addError(row.rowNumber, 'password', `Password must be ${PASSWORD_MIN} to 128 characters`);
       if (row.phone.length > 20) addError(row.rowNumber, 'phone', 'Phone must be 20 characters or fewer');
       if (row.class_name) addError(row.rowNumber, 'class_name', 'Account rows must leave class_name blank');
       if (row.parent_emails.length) addError(row.rowNumber, 'parent_emails', 'Account rows must leave parent_emails blank');
+      if (row.pickup_latitude || row.pickup_longitude) addError(row.rowNumber, 'pickup_latitude', 'Account rows must leave pickup coordinates blank');
       if (emailRows.has(row.email)) {
         addError(row.rowNumber, 'email', `Email is duplicated in row ${emailRows.get(row.email)}`);
         addError(emailRows.get(row.email), 'email', `Email is duplicated in row ${row.rowNumber}`);
@@ -110,9 +118,11 @@ export async function validateBulkRegistration({ buffer, schoolId }) {
     : [];
   const existingParentEmails = new Set(existingParents.map((parent) => parent.email));
   const declaredRole = new Map(normalized.filter((row) => validEmail(row.email)).map((row) => [row.email, row.record_type]));
+  const parentRowByEmail = new Map(normalized.filter((row) => row.record_type === 'parent' && validEmail(row.email)).map((row) => [row.email, row.rowNumber]));
   for (const row of normalized.filter((item) => item.record_type === 'student')) {
     for (const email of row.parent_emails) {
       if (declaredRole.has(email) && declaredRole.get(email) !== 'parent') addError(row.rowNumber, 'parent_emails', `${email} is listed as a ${declaredRole.get(email)}, not a parent`);
+      else if (parentRowByEmail.has(email) && errorsByRow.get(parentRowByEmail.get(email)).length) addError(row.rowNumber, 'parent_emails', `Parent account for ${email} on row ${parentRowByEmail.get(email)} has validation errors`);
       else if (!parentRows.has(email) && !existingParentEmails.has(email)) addError(row.rowNumber, 'parent_emails', `No active parent account exists or is included for ${email}`);
     }
   }
@@ -151,7 +161,8 @@ export async function commitBulkRegistration({ buffer, schoolId }) {
       const idsByEmail = new Map(parents.map((parent) => [parent.email, parent._id]));
       const studentDocs = studentRows.map((row) => ({
         _id: new mongoose.Types.ObjectId(), schoolId, name: cleanCell(row.name), className: cleanCell(row.class_name) || undefined,
-        parentIds: [...new Set(cleanCell(row.parent_emails).split(/[\n,;]+/).map((email) => idsByEmail.get(email.trim().toLowerCase())).filter(Boolean))], isActive: true
+        parentIds: [...new Set(cleanCell(row.parent_emails).split(/[\n,;]+/).map((email) => idsByEmail.get(email.trim().toLowerCase())).filter(Boolean))],
+        ...(cleanCell(row.pickup_latitude) && { pickupLocation: { latitude: Number(row.pickup_latitude), longitude: Number(row.pickup_longitude) } }), isActive: true
       }));
       createdStudentIds.push(...studentDocs.map((student) => student._id));
       await Student.insertMany(studentDocs, { ordered: true });

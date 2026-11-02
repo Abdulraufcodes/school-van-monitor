@@ -7,7 +7,7 @@ import { AppError } from '../../src/utils/AppError.js';
 export async function listSchoolPeople(schoolId) {
   const [users, students] = await Promise.all([
     User.find({ schoolId, role: { $in: ['driver', 'parent'] } }).select('_id name email phone role isActive createdAt').sort({ role: 1, name: 1 }).lean(),
-    Student.find({ schoolId }).select('_id name className parentIds isActive createdAt').populate({ path: 'parentIds', select: 'name email' }).sort({ name: 1 }).lean()
+    Student.find({ schoolId }).select('_id name className parentIds pickupLocation isActive createdAt').populate({ path: 'parentIds', select: 'name email' }).sort({ name: 1 }).lean()
   ]);
   return { users, students };
 }
@@ -26,7 +26,7 @@ export async function createSchoolUser({ schoolId, name, email, password, role, 
   }
 }
 
-export async function createSchoolStudent({ schoolId, name, className, parentEmails }) {
+export async function createSchoolStudent({ schoolId, name, className, parentEmails, pickupLatitude, pickupLongitude }) {
   const emails = [...new Set(parentEmails)];
   const parents = await User.find({ schoolId, role: 'parent', isActive: true, email: { $in: emails } }).select('_id email').lean();
   const byEmail = new Map(parents.map((parent) => [parent.email, parent]));
@@ -38,12 +38,23 @@ export async function createSchoolStudent({ schoolId, name, className, parentEma
     schoolId,
     name,
     className,
-    parentIds: parents.map((parent) => parent._id)
+    parentIds: parents.map((parent) => parent._id),
+    ...(pickupLatitude !== undefined && { pickupLocation: { latitude: pickupLatitude, longitude: pickupLongitude } })
   });
   return {
     id: String(student._id), name: student.name, className: student.className || '',
-    parents: parents.map((parent) => ({ id: String(parent._id), email: parent.email })), isActive: student.isActive
+    parents: parents.map((parent) => ({ id: String(parent._id), email: parent.email })),
+    pickupLocation: student.pickupLocation?.latitude !== undefined ? student.pickupLocation : null,
+    isActive: student.isActive
   };
+}
+
+export async function updateSchoolStudentPickupLocation({ schoolId, studentId, pickupLocation }) {
+  const student = await Student.findOne({ _id: studentId, schoolId });
+  if (!student) throw new AppError(404, 'STUDENT_NOT_FOUND', 'Student not found');
+  student.pickupLocation = pickupLocation || undefined;
+  await student.save();
+  return { id: String(student._id), pickupLocation: student.pickupLocation?.latitude !== undefined ? student.pickupLocation : null };
 }
 
 export async function updateStudentParents({ schoolId, studentId, parentEmails }) {

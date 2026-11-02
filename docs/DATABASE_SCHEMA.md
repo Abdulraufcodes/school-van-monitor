@@ -52,6 +52,7 @@ Relationships:
 - `className` (avoid unnecessary data)
 - `parentIds: ObjectId[]`
 - `assignedRouteId` (optional)
+- `pickupLocation.latitude` and `pickupLocation.longitude` (optional finite coordinates used only for pickup proximity alerts)
 - `isActive`
 - timestamps
 
@@ -97,6 +98,12 @@ Relationships:
 - `recordedAt` (optional device time)
 - `notes` (optional, strictly limited)
 - timestamps
+
+### Notification (pickup approach)
+- `schoolId`, `parentId`, `studentId`, `tripId`, `vanId`
+- `type: pickup_approaching`
+- `distanceMeters`, `occurredAt`, optional `readAt`
+- Unique `{ tripId, studentId, parentId, type }` index suppresses repeated alerts to the same parent for a student's pickup during a trip.
 
 ## Indexes and constraints
 
