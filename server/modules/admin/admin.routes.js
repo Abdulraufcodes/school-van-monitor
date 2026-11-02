@@ -3,12 +3,14 @@ import { authenticate } from '../../src/middleware/authenticate.js';
 import { authorize } from '../../src/middleware/authorize.js';
 import { requireAdminSchool } from '../../src/middleware/requireAdminSchool.js';
 import { validate } from '../../src/middleware/validate.js';
-import { createSchoolStudentController, createSchoolUserController, listSchoolPeopleController, resendActivationController, updateSchoolStudentStatusController, updateSchoolUserStatusController, updateStudentParentsController, updateStudentPickupLocationController } from './admin.controller.js';
-import { createSchoolUserSchema, createStudentSchema, resendActivationSchema, updateSchoolStudentStatusSchema, updateSchoolUserStatusSchema, updateStudentParentsSchema, updateStudentPickupLocationSchema } from './admin.validation.js';
+import { createSchoolStudentController, createSchoolUserController, getPickupAlertSettingsController, listSchoolPeopleController, resendActivationController, updatePickupAlertSettingsController, updateSchoolStudentStatusController, updateSchoolUserStatusController, updateStudentParentsController, updateStudentPickupLocationController } from './admin.controller.js';
+import { createSchoolUserSchema, createStudentSchema, pickupAlertSettingsSchema, resendActivationSchema, updateSchoolStudentStatusSchema, updateSchoolUserStatusSchema, updateStudentParentsSchema, updateStudentPickupLocationSchema } from './admin.validation.js';
 
 export const adminRouter = Router();
 adminRouter.use(authenticate, authorize('admin'), requireAdminSchool);
 adminRouter.get('/people', listSchoolPeopleController);
+adminRouter.get('/settings/pickup-alerts', getPickupAlertSettingsController);
+adminRouter.put('/settings/pickup-alerts', validate(pickupAlertSettingsSchema), updatePickupAlertSettingsController);
 adminRouter.post('/users', validate(createSchoolUserSchema), createSchoolUserController);
 adminRouter.post('/users/:userId/resend-activation', validate(resendActivationSchema), resendActivationController);
 adminRouter.patch('/users/:userId/status', validate(updateSchoolUserStatusSchema), updateSchoolUserStatusController);

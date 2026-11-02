@@ -1,5 +1,5 @@
 import { success } from '../../src/utils/response.js';
-import { createSchoolStudent, createSchoolUser, listSchoolPeople, updateSchoolStudentPickupLocation, updateSchoolStudentStatus, updateSchoolUserStatus, updateStudentParents } from './admin.service.js';
+import { createSchoolStudent, createSchoolUser, getPickupAlertSettings, listSchoolPeople, updatePickupAlertSettings, updateSchoolStudentPickupLocation, updateSchoolStudentStatus, updateSchoolUserStatus, updateStudentParents } from './admin.service.js';
 import { resendActivation } from '../auth/accountAccess.service.js';
 
 export async function listSchoolPeopleController(req, res, next) {
@@ -19,6 +19,16 @@ export async function updateSchoolUserStatusController(req, res, next) {
 
 export async function updateSchoolStudentStatusController(req, res, next) {
   try { return success(res, await updateSchoolStudentStatus({ schoolId: req.schoolId, studentId: req.validated.params.studentId, ...req.validated.body }), 'Student status updated'); }
+  catch (error) { return next(error); }
+}
+
+export async function getPickupAlertSettingsController(req, res, next) {
+  try { return success(res, await getPickupAlertSettings(req.schoolId), 'Pickup alert settings retrieved'); }
+  catch (error) { return next(error); }
+}
+
+export async function updatePickupAlertSettingsController(req, res, next) {
+  try { return success(res, await updatePickupAlertSettings({ schoolId: req.schoolId, settings: req.validated.body }), 'Pickup alert settings updated'); }
   catch (error) { return next(error); }
 }
 
