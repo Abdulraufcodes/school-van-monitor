@@ -25,6 +25,11 @@ const studentSchema = new Schema(
             maxlength: 50
         },
 
+        pickupLocation: {
+            latitude: { type: Number, min: -90, max: 90 },
+            longitude: { type: Number, min: -180, max: 180 }
+        },
+
         // Parent accounts allowed to see this student's van.
         parentIds: [{
             type: Schema.Types.ObjectId,

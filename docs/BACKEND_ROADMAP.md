@@ -129,7 +129,7 @@ Existing protected APIs should continue using centralized authentication and aut
 ## Phase 1 — Backend Foundation and Verification
 
 **Priority:** High  
-**Status:** Completed.
+**Status:** Core implementation completed; full regression verification remains part of Phase 6.
 
 ### Objective
 
@@ -199,13 +199,13 @@ Existing backend functionality passes its relevant tests and can safely support 
 ## Phase 2 — Student Pickup and Drop-off Management
 
 **Priority:** Critical  
-**Status:** Completed.
+**Status:** Implemented; full integration verification remains part of Phase 6.
 
 ### Objective
 
 Implement the functionality required to record when students are picked up and dropped off.
 
-This is one of the most important missing features because timestamped pickup and drop-off information is explicitly required by the problem statement.
+This capability is implemented. Pickup and drop-off events use OTP verification, database-backed authorization, and server-generated timestamps.
 
 ### 2.1 Data Model Design
 
@@ -216,55 +216,29 @@ Before implementing APIs, review the existing:
 - Van model.
 - Parent-child relationship.
 
-Design a trip-student record or event-based structure that connects a student with a particular trip.
-
-Illustrative structure:
-
-```js
-{
-  tripId: ObjectId,
-  studentId: ObjectId,
-  vanId: ObjectId,
-
-  pickupStatus: "PENDING",
-  pickupTime: null,
-
-  dropStatus: "PENDING",
-  dropTime: null
-}
-```
-
-This is a proposed structure, not an existing schema. The final design must be decided after reviewing the current models.
+The implemented `StudentEvent` record links a student, school, trip, van, and authenticated driver. Pickup and drop-off events are tied to the server-derived school-local service date.
 
 ### 2.2 Pickup functionality
 
-- [ ] Implement pickup API.
-- [ ] Validate active trip.
-- [ ] Validate assigned driver.
-- [ ] Validate student belongs to the trip.
-- [ ] Validate school association.
-- [ ] Record pickup status.
-- [ ] Generate pickup timestamp on the server.
-- [ ] Prevent duplicate pickup actions.
+- [x] Implement pickup OTP request and verification APIs.
+- [x] Validate active trip, assigned driver, student assignment, and school.
+- [x] Record pickup event with server timestamp.
+- [x] Prevent duplicate pickup actions.
 
 ### 2.3 Drop-off functionality
 
-- [ ] Implement drop-off API.
-- [ ] Validate active trip.
-- [ ] Validate assigned driver.
-- [ ] Validate student belongs to the trip.
-- [ ] Ensure student has been picked up.
-- [ ] Record drop-off status.
-- [ ] Generate drop-off timestamp on the server.
-- [ ] Prevent duplicate drop-off actions.
+- [x] Implement drop-off OTP request and verification APIs.
+- [x] Validate active trip, assigned driver, student assignment, and verified morning pickup.
+- [x] Record drop-off event with server timestamp.
+- [x] Prevent duplicate drop-off actions.
 
 ### 2.4 Retrieval APIs
 
-- [ ] Retrieve all student statuses for a trip.
-- [ ] Retrieve an individual student's trip status.
-- [ ] Retrieve pickup/drop-off history.
-- [ ] Allow parents to retrieve their linked children's status.
-- [ ] Allow school administrators to retrieve their school's records.
+- [x] Retrieve student statuses for a driver's active trip.
+- [x] Retrieve an individual student's trip status with role and ownership checks.
+- [x] Retrieve parent and school-admin event history.
+- [x] Allow parents to retrieve only linked children's statuses.
+- [x] Allow school administrators to retrieve only school records.
 
 ### Acceptance criteria
 
@@ -284,7 +258,7 @@ A complete pickup and drop-off workflow works through the backend, with accurate
 ## Phase 3 — Live Van Tracking Integration
 
 **Priority:** Critical  
-**Status:** Completed.
+**Status:** Implemented; full integration verification remains part of Phase 6.
 
 ### Objective
 
@@ -298,31 +272,24 @@ Provide reliable tracking information to parents and school management.
 - [x] Socket.IO broadcasts location updates.
 - [x] Authorized parents receive location events.
 
-### Remaining tasks
+### Implemented integration tasks
 
 #### Latest location retrieval
 
-- [ ] Implement or verify API for retrieving the latest van location.
-- [ ] Ensure location is scoped to an active trip.
-- [ ] Ensure parents can retrieve only authorized trip locations.
-- [ ] Ensure school administrators can retrieve their school's van locations.
+- [x] Retrieve the latest van location for an authorized active trip.
+- [x] Scope parent location access to linked students and their assigned van.
+- [x] Scope admin fleet locations to the admin's school.
 
 #### Active trip information
 
-- [ ] Provide active trip details.
-- [ ] Provide associated van details.
-- [ ] Provide relevant driver details.
-- [ ] Provide trip status.
+- [x] Provide active trip, van, driver, and trip status details.
 
 #### Real-time reliability
 
-- [ ] Implement socket reconnection handling on the client.
-- [ ] Support re-subscription after reconnection.
-- [ ] Handle stale GPS locations.
-- [ ] Handle missing GPS updates.
-- [ ] Handle driver disconnection.
-- [ ] Ensure completed trips are reflected correctly.
-- [ ] Ensure clients can retrieve the latest saved location after reconnecting.
+- [x] Reconnect clients and restore authorized trip subscriptions.
+- [x] Poll/fetch saved locations after reconnect and on screen resume.
+- [x] Identify stale GPS locations and missing updates.
+- [x] Reflect completed trips and driver disconnection.
 
 ### Acceptance criteria
 
@@ -342,7 +309,7 @@ The backend supports both initial location retrieval and ongoing real-time track
 ## Phase 4 — Van Approaching Child's Home Alerts
 
 **Priority:** Critical  
-**Status:** Pending implementation.
+**Status:** Implemented; field threshold and operating radius should be calibrated by each school.
 
 ### Objective
 
@@ -352,28 +319,25 @@ This directly addresses one of the main requirements in the problem statement.
 
 ### 4.1 Pickup location management
 
-- [ ] Review the existing student address/location structure.
-- [ ] Store or validate the student's pickup coordinates.
-- [ ] Ensure pickup locations are associated with the correct student.
-- [ ] Restrict access to sensitive location information.
+- [x] Store optional pickup coordinates on the student.
+- [x] Validate coordinate ranges and require both latitude and longitude.
+- [x] Keep pickup coordinates school-admin scoped and omit them from parent notifications.
 
 ### 4.2 Proximity calculation
 
-- [ ] Retrieve the van's latest GPS coordinates.
-- [ ] Calculate distance between the van and pickup location.
-- [ ] Configure an initial proximity radius.
-- [ ] Trigger proximity detection when the van enters that radius.
+- [x] Evaluate newly persisted GPS coordinates against assigned students' pickup points.
+- [x] Calculate distance using the Haversine formula.
+- [x] Configure a proximity radius with a 500 metre default.
+- [x] Trigger the first approach alert within the radius during an active morning pickup trip.
 
 An initial configurable radius, such as 500 metres, can be used for testing. The final value should be validated in the actual operating environment.
 
 ### 4.3 Alert generation
 
-- [ ] Generate an alert for the relevant student.
-- [ ] Notify only the linked parent or parents.
-- [ ] Associate the alert with the correct trip.
-- [ ] Prevent duplicate alerts.
-- [ ] Store notification status if required.
-- [ ] Handle missing or stale GPS data.
+- [x] Generate and persist per-parent, per-student, per-trip alerts.
+- [x] Notify only active linked parent accounts through authorized parent rooms.
+- [x] Suppress duplicate alerts using a unique database index.
+- [x] Skip alerts for stale or missing GPS data.
 
 ### Initial notification approach
 
@@ -398,7 +362,7 @@ The system can reliably detect van proximity and notify the correct parent.
 ## Phase 5 — School Management Dashboard APIs
 
 **Priority:** Critical  
-**Status:** Pending implementation.
+**Status:** Implemented; requires full regression verification.
 
 ### Objective
 
@@ -408,26 +372,16 @@ Provide school management with real-time transportation information.
 
 #### Active trips
 
-- [ ] Retrieve all active trips for a school.
-- [ ] Retrieve van information.
-- [ ] Retrieve driver information.
-- [ ] Retrieve latest GPS locations.
-- [ ] Retrieve trip status.
+- [x] Retrieve active trips with school-scoped van, driver, latest location, and status.
 
 #### Student statistics
 
-- [ ] Total students assigned to a trip.
-- [ ] Number of students picked up.
-- [ ] Number of students awaiting pickup.
-- [ ] Number of students dropped off.
-- [ ] Number of students awaiting drop-off.
+- [x] Count assigned students, verified pickups, pending pickups, verified drop-offs, and pending drop-offs.
 
 #### Trip records
 
-- [ ] Retrieve timestamped pickup records.
-- [ ] Retrieve timestamped drop-off records.
-- [ ] Retrieve trip history.
-- [ ] Retrieve relevant student status information.
+- [x] Retrieve timestamped pickup and drop-off event history.
+- [x] Retrieve trip student status information.
 
 ### Example dashboard response
 
@@ -512,7 +466,7 @@ All essential workflows pass integration testing, and no critical authorization 
 ## Phase 7 — Deployment and Documentation
 
 **Priority:** High  
-**Status:** Pending.
+**Status:** Documentation updated; production deployment and operations remain pending.
 
 ### Deployment preparation
 
@@ -521,23 +475,18 @@ All essential workflows pass integration testing, and no critical authorization 
 - [ ] Configure allowed frontend origins.
 - [ ] Configure secure authentication settings.
 - [ ] Verify Socket.IO in the production environment.
-- [ ] Configure server logging.
-- [ ] Handle production errors safely.
-- [ ] Deploy backend.
-- [ ] Verify deployed APIs.
+- [ ] Configure production logging, backups, and monitoring.
+- [x] Centralized error handling returns safe messages.
+- [ ] Deploy backend and frontend.
+- [ ] Verify deployed APIs and live tracking.
 
 ### Documentation
 
-- [ ] Document authentication APIs.
-- [ ] Document van APIs.
-- [ ] Document trip APIs.
-- [ ] Document pickup/drop-off APIs.
-- [ ] Document GPS APIs.
-- [ ] Document Socket.IO events.
-- [ ] Document notification behavior.
-- [ ] Document admin dashboard APIs.
-- [ ] Document onboarding.
-- [ ] Document testing and setup instructions.
+- [x] Document authentication, van, trip, student event, and GPS APIs.
+- [x] Document Socket.IO events and pickup notification behavior.
+- [x] Document admin dashboard APIs.
+- [x] Document individual and Excel onboarding flows.
+- [x] Document development setup and manual test scenarios.
 
 ### Completion condition
 
@@ -643,7 +592,7 @@ Deferring these features must not compromise essential authorization, school iso
 
 The following features have been implemented or manually verified based on the current development progress.
 
-### Implemented / manually verified
+### Implemented
 
 - [x] JWT authentication foundation.
 - [x] Role-based authorization.
@@ -657,18 +606,21 @@ The following features have been implemented or manually verified based on the c
 - [x] Parent trip subscription and authorization.
 - [x] Real-time GPS broadcasting.
 - [x] Manual end-to-end real-time GPS test.
+- [x] Student registration, parent linking, and school-scoped user management.
+- [x] All-or-nothing Excel import with validation preview.
+- [x] Parent live tracking screen with saved-location recovery.
+- [x] Pickup proximity notifications and parent notification history.
+- [x] School dashboard totals and trip student progress.
 
-### Verification or implementation still required
+### Verification or deployment still required
 
 - [ ] Complete backend regression and tenant-isolation testing.
-- [ ] Complete student pickup/drop-off functionality.
-- [ ] Complete tracking retrieval and reconnection behavior.
-- [ ] Implement proximity-based alerts.
-- [ ] Implement school management dashboard APIs.
 - [ ] Complete integration testing.
-- [ ] Complete deployment and documentation.
+- [ ] Run automated backend and frontend regression suites.
+- [ ] Complete production deployment and operations setup.
+- [ ] Set student/GPS/notification retention and deletion policies.
 
-**Important:** A feature marked implemented does not mean every edge case or production requirement has been tested. The team must distinguish implementation from verified completion.
+**Important:** Implementation is not the same as verified completion. Automated and manual integration checks are still pending for this branch.
 
 ---
 

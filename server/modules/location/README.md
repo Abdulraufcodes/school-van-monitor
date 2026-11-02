@@ -1,3 +1,3 @@
 # Location module
 
-`LocationUpdate` stores GPS history for a trip. The van module's reference service currently writes location records. Consider moving location ingestion into this module if it grows, but avoid circular imports. Add retention rules and stale/out-of-order update handling before production.
+`LocationUpdate` stores GPS history for a trip with both device-recorded and server-received timestamps. The van service enforces driver/van/trip ownership, rejects future and out-of-order updates, persists accepted locations, then broadcasts them. Admin and parent APIs return the latest saved point and identify stale data. GPS retention remains a production policy to define.

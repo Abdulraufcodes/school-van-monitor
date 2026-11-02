@@ -1,14 +1,3 @@
-# Auth module (planned)
+# Auth module
 
-The reference API includes JWT verification middleware, but not a complete login/registration/session module.
-
-Implement here:
-- `auth.routes.js`
-- `auth.controller.js`
-- `auth.service.js`
-- `auth.validation.js`
-- `user.model.js` (or `modules/user/` if the team chooses a separate user module)
-- password hashing (e.g. bcrypt/argon2), login throttling and account activation rules
-- access-token issuance, refresh-token rotation/revocation if required
-
-Do not accept arbitrary role claims from registration requests. Account creation and role assignment must follow an admin-controlled onboarding flow.
+The module provides email/password login, bcrypt password hashing, 15-minute JWT access tokens, and an authenticated current-user endpoint. The database role is authoritative and user records are reloaded by authentication middleware. School-admin-controlled parent and driver creation lives in the admin module. Refresh-token rotation and server-side logout revocation are deferred.

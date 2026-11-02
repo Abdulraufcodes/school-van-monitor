@@ -1,3 +1,3 @@
 # Trip module
 
-The `Trip` model is used by the reference location feature. Trip start/end routes and state-transition logic are not implemented yet. Build these with assignment checks, concurrency protection against duplicate active trips, validation and tests.
+Trips are school-scoped and identify their assigned van, driver, type, service date, status, start time, and end time. Drivers may start trips only for their own active assigned vans and end only their own active trips. Active-trip uniqueness is enforced by partial indexes. GPS writes and student events require an authorized active trip.

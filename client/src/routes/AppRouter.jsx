@@ -11,6 +11,10 @@ import { VansPage } from '../pages/VansPage.jsx';
 import { LiveTrackingPage } from '../pages/LiveTrackingPage.jsx';
 import { DriversPage } from '../pages/DriversPage.jsx';
 import { StudentActivityPage } from '../pages/StudentActivityPage.jsx';
+import { PeoplePage } from '../pages/PeoplePage.jsx';
+import { BulkRegistrationPage } from '../pages/BulkRegistrationPage.jsx';
+import { ParentLiveTrackingPage } from '../pages/ParentLiveTrackingPage.jsx';
+import { ParentActivityHistoryPage } from '../pages/ParentActivityHistoryPage.jsx';
 
 export function AppRouter() {
   return (
@@ -25,6 +29,8 @@ export function AppRouter() {
           <Route path="/dashboard/live-tracking" element={<LiveTrackingPage />} />
           <Route path="/dashboard/drivers" element={<DriversPage />} />
           <Route path="/dashboard/student-activity" element={<StudentActivityPage />} />
+          <Route path="/dashboard/people" element={<PeoplePage />} />
+          <Route path="/dashboard/import" element={<BulkRegistrationPage />} />
         </Route>
         <Route element={<ProtectedRoute allowedRoles={['driver']} />}>
           <Route path="/driver/dashboard" element={<DriverDashboardPage />} />
@@ -32,6 +38,8 @@ export function AppRouter() {
         </Route>
         <Route element={<ProtectedRoute allowedRoles={['parent']} />}>
           <Route path="/parent/dashboard" element={<ParentDashboardPage />} />
+          <Route path="/parent/live-tracking" element={<ParentLiveTrackingPage />} />
+          <Route path="/parent/activity-history" element={<ParentActivityHistoryPage />} />
         </Route>
         <Route path="*" element={<NotFoundPage />} />
       </Routes>

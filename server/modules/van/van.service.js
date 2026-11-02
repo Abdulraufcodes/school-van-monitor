@@ -5,6 +5,7 @@ import { Trip } from '../trip/trip.model.js';
 import { LocationUpdate } from '../location/location.model.js';
 import { AppError } from '../../src/utils/AppError.js';
 import { emitTripLocationUpdate } from '../../src/sockets/socketServer.js';
+import { notifyPickupApproach } from '../notification/pickupApproach.service.js';
 
 export async function updateVanLocation({ vanId, driverId, driverSchoolId, latitude, longitude, recordedAt }) {
   if (
@@ -129,6 +130,12 @@ export async function updateVanLocation({ vanId, driverId, driverSchoolId, latit
 
   // Only broadcast after MongoDB successfully saves the update.
   emitTripLocationUpdate(locationData);
+
+  try {
+    await notifyPickupApproach({ trip, van, location: locationData });
+  } catch (error) {
+    console.error('Pickup approach alert processing failed:', error.message);
+  }
 
   return locationData;
 }

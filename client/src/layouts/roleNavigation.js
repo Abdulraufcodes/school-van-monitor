@@ -7,7 +7,8 @@ export const roleNavigation = Object.freeze({
     item('Live Tracking', '/dashboard/live-tracking'),
     item('Students', '/dashboard/student-activity'),
     item('Drivers', '/dashboard/drivers'),
-    item('Parents', '/dashboard/parents', true),
+    item('People', '/dashboard/people'),
+    item('Bulk Import', '/dashboard/import'),
     item('Reports', '/dashboard/reports', true)
   ],
   driver: [
@@ -18,8 +19,8 @@ export const roleNavigation = Object.freeze({
   ],
   parent: [
     item('Dashboard', '/parent/dashboard'),
-    item('Live Tracking', '/parent/live-tracking', true),
-    item('Activity History', '/parent/activity-history', true)
+    item('Live Tracking', '/parent/live-tracking'),
+    item('Activity History', '/parent/activity-history')
   ]
 });
 

@@ -33,6 +33,21 @@ export async function getAdminStudentEventHistory(studentId, { page = 1, limit =
   );
 }
 
+export async function getParentStudentEventHistory(studentId, { page = 1, limit = 20 } = {}) {
+  const response = await api.get(
+    `/student-events/students/${encodeURIComponent(studentId)}/history`,
+    { params: { page, limit } }
+  );
+  return getData(
+    response,
+    (data) => data.student && Array.isArray(data.events)
+      && data.pagination && Number.isInteger(data.pagination.page)
+      && Number.isInteger(data.pagination.limit) && Number.isInteger(data.pagination.total)
+      && Number.isInteger(data.pagination.totalPages),
+    'The server returned an unexpected student history response.'
+  );
+}
+
 export async function requestPickupOtp(tripId, studentId) {
   const response = await api.post(`/student-events/${encodeURIComponent(tripId)}/students/${encodeURIComponent(studentId)}/pickup/otp`, {});
   return getData(response, (data) => data.studentId && Number.isFinite(data.expiresInSeconds) && Number.isFinite(data.resendAvailableInSeconds), 'The server returned an unexpected pickup OTP response.');

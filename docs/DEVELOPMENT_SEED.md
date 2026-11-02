@@ -29,6 +29,7 @@ The script creates or safely reuses records after checking existing demo records
 - 3 active drivers: `driver1@cedargrove.example`, `driver2@cedargrove.example`, `driver3@cedargrove.example`
 - 3 active parents: `parent1@cedargrove.example`, `parent2@cedargrove.example`, `parent3@cedargrove.example`
 - 3 active vans: `CG-DEMO-001` through `CG-DEMO-003`, one assigned to each driver
+- 3 fictional students, each linked to one demo parent and assigned to the corresponding demo van
 
 All addresses use the reserved `.example` domain. The seed hashes the local `DEV_DEMO_PASSWORD` when it creates an account. Because existing users are reused without changing their password, an already-seeded account keeps the password set when that account was first created; changing `DEV_DEMO_PASSWORD` later does not reset it. The seed uses the project’s actual roles `admin`, `driver`, and `parent`, plus `isActive: true` and each account’s `schoolId`. The School schema supports only `isActive`; there is no approval or verification field.
 
@@ -52,6 +53,6 @@ The Van schema requires `schoolId`, and each seeded van is associated with the d
 
 In MongoDB Compass, inspect the `schools`, `users`, and `vans` collections. Confirm the school is active; users have the expected role and matching `schoolId`; and each van has the expected school, assigned driver, and active state. To verify sign-in, start the backend and frontend, then use the email and local demo password configured for the account.
 
-## Current schema limitations
+## Current demo limitations
 
-There is no Student model, no parent-to-student relationship, and no route/route-assignment model. Parents can be seeded only as user accounts; students and parent links cannot be created without adding unsupported schema. Trips and location updates are also omitted so the seed does not create artificial trip activity or GPS coordinates. Student and parent-to-student workflows require backend models and endpoints first.
+The seed creates linked students but intentionally does not create active trips, GPS points, or pickup coordinates. To demonstrate approach alerts, set fictional pickup coordinates on a student in the admin People page, start a morning trip, and send a fresh GPS point within the configured radius. Never use real home coordinates in development or screenshots.
