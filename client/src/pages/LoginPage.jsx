@@ -138,6 +138,7 @@ export function LoginPage() {
                 {loading && <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950/30 border-t-slate-950" />}
                 {loading ? 'Signing in…' : 'Sign in'}
               </button>
+              <p className="text-center text-sm"><Link to="/forgot-password" className="font-semibold text-cyan-300 hover:text-cyan-200">Forgot password?</Link></p>
               <p className="text-center text-xs leading-5 text-slate-500">Your dashboard is selected from the role assigned to your account.</p>
             </form>
           )}

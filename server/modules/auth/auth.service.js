@@ -25,6 +25,10 @@ export async function loginUser({ email, password }) {
     );
   }
 
+  if (user.accountStatus === 'pending_activation') {
+    throw new AppError(403, 'ACCOUNT_NOT_ACTIVATED', 'Activate your account using the link sent by your school before signing in');
+  }
+
   const secret = process.env.JWT_ACCESS_SECRET;
 
   if (!secret) {

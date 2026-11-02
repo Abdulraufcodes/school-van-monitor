@@ -10,6 +10,11 @@ export async function getCurrentUser() {
   return response.data;
 }
 
+export async function activateAccount(payload) { return (await api.post('/auth/activate', payload)).data; }
+export async function requestPasswordReset(email) { return (await api.post('/auth/password/reset-request', { email })).data; }
+export async function resetPassword(payload) { return (await api.post('/auth/password/reset', payload)).data; }
+export async function changePassword(payload) { return (await api.post('/auth/password/change', payload)).data; }
+
 export function getLoginErrorMessage(error) {
   const status = error.response?.status;
   const apiMessage = error.response?.data?.message;

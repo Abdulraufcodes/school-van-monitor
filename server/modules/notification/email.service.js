@@ -53,3 +53,31 @@ export async function sendPickupOtpEmail({ to, studentName, otp }) {
         );
     }
 }
+
+export async function sendAccountLinkEmail({ to, name, purpose, link, expiresAt }) {
+    if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS || !process.env.EMAIL_FROM) {
+        if (process.env.NODE_ENV === 'development') {
+            console.info(`[DEV ONLY] ${purpose} link for ${to}: ${link}`);
+            return;
+        }
+        throw new AppError(503, 'EMAIL_NOT_CONFIGURED', 'Email delivery is not configured');
+    }
+    const activation = purpose === 'activation';
+    try {
+        await transporter.sendMail({
+            from: process.env.EMAIL_FROM,
+            to,
+            subject: activation ? 'Activate your school transport account' : 'Reset your school transport password',
+            text: [
+                `Hello ${name},`, '',
+                activation ? 'Set a password to activate your school transport account:' : 'Use this link to choose a new password:',
+                link, '',
+                `This single-use link expires at ${expiresAt.toISOString()}.`,
+                'If you did not expect this email, you can ignore it.'
+            ].join('\n')
+        });
+    } catch (error) {
+        console.error('Account email delivery failed:', error.message);
+        throw new AppError(502, 'EMAIL_DELIVERY_FAILED', 'Could not send the account email');
+    }
+}

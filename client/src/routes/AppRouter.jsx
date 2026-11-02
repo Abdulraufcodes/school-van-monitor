@@ -15,6 +15,8 @@ import { PeoplePage } from '../pages/PeoplePage.jsx';
 import { BulkRegistrationPage } from '../pages/BulkRegistrationPage.jsx';
 import { ParentLiveTrackingPage } from '../pages/ParentLiveTrackingPage.jsx';
 import { ParentActivityHistoryPage } from '../pages/ParentActivityHistoryPage.jsx';
+import { AccountLinkPage } from '../pages/AccountLinkPage.jsx';
+import { ChangePasswordPage } from '../pages/ChangePasswordPage.jsx';
 
 export function AppRouter() {
   return (
@@ -23,6 +25,10 @@ export function AppRouter() {
         <Route path="/" element={<HomePage />} />
         <Route path="/roles" element={<RoleSelectionPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/account/activate" element={<AccountLinkPage />} />
+        <Route path="/account/reset-password" element={<AccountLinkPage />} />
+        <Route path="/forgot-password" element={<AccountLinkPage />} />
+        <Route element={<ProtectedRoute allowedRoles={['admin', 'driver', 'parent']} />}><Route path="/account/password" element={<ChangePasswordPage />} /></Route>
         <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/dashboard/vans" element={<VansPage />} />

@@ -2,8 +2,8 @@ import { Router } from 'express';
 
 import { validate } from '../../src/middleware/validate.js';
 import { authenticate } from '../../src/middleware/authenticate.js';
-import { currentUserController, loginController } from './auth.controller.js';
-import { loginSchema } from './auth.validation.js';
+import { activateAccountController, changePasswordController, currentUserController, loginController, requestPasswordResetController, resetPasswordController } from './auth.controller.js';
+import { activationSchema, changePasswordSchema, loginSchema, resetPasswordSchema, resetRequestSchema } from './auth.validation.js';
 
 export const authRouter = Router();
 
@@ -14,3 +14,8 @@ authRouter.post(
   validate(loginSchema),
   loginController
 );
+
+authRouter.post('/activate', validate(activationSchema), activateAccountController);
+authRouter.post('/password/reset-request', validate(resetRequestSchema), requestPasswordResetController);
+authRouter.post('/password/reset', validate(resetPasswordSchema), resetPasswordController);
+authRouter.post('/password/change', authenticate, validate(changePasswordSchema), changePasswordController);

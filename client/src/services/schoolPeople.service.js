@@ -10,6 +10,11 @@ export async function createSchoolUser(payload) {
   return response.data?.data;
 }
 
+export async function resendSchoolUserActivation(userId) {
+  const response = await api.post(`/admin/users/${encodeURIComponent(userId)}/resend-activation`);
+  return response.data?.data;
+}
+
 export async function createSchoolStudent(payload) {
   const response = await api.post('/admin/students', payload);
   return response.data?.data;
@@ -41,5 +46,15 @@ export async function commitRegistrationFile(file) {
   const form = new FormData();
   form.append('file', file);
   const response = await api.post('/admin/import/commit', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+  return response.data?.data;
+}
+
+export async function getRosterImportHistory() {
+  const response = await api.get('/admin/import/history');
+  return response.data?.data || [];
+}
+
+export async function resendRosterImportInvitations(importId) {
+  const response = await api.post(`/admin/import/history/${encodeURIComponent(importId)}/resend-invitations`);
   return response.data?.data;
 }

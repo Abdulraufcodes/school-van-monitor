@@ -51,6 +51,16 @@ const userSchema = new Schema(
       default: true,
       required: true,
     },
+
+    accountStatus: {
+      type: String,
+      enum: ["pending_activation", "active"],
+      default: "active",
+      required: true,
+      index: true,
+    },
+
+    passwordChangedAt: { type: Date },
   },
   {
     timestamps: true,

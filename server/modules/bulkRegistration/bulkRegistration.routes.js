@@ -5,7 +5,7 @@ import { authenticate } from '../../src/middleware/authenticate.js';
 import { authorize } from '../../src/middleware/authorize.js';
 import { requireAdminSchool } from '../../src/middleware/requireAdminSchool.js';
 import { success } from '../../src/utils/response.js';
-import { buildRegistrationTemplate, commitBulkRegistration, previewBulkRegistration } from './bulkRegistration.service.js';
+import { buildRegistrationTemplate, commitBulkRegistration, listRosterImports, previewBulkRegistration, resendRosterImportInvitations } from './bulkRegistration.service.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -26,6 +26,16 @@ bulkRegistrationRouter.get('/template', async (_req, res, next) => {
     res.setHeader('Content-Disposition', 'attachment; filename="school-registration-template.xlsx"');
     return res.send(buffer);
   } catch (error) { return next(error); }
+});
+
+bulkRegistrationRouter.get('/history', async (req, res, next) => {
+  try { return success(res, await listRosterImports({ schoolId: req.schoolId }), 'Roster import history retrieved'); }
+  catch (error) { return next(error); }
+});
+
+bulkRegistrationRouter.post('/history/:importId/resend-invitations', async (req, res, next) => {
+  try { return success(res, await resendRosterImportInvitations({ schoolId: req.schoolId, importId: req.params.importId }), 'Pending invitations processed'); }
+  catch (error) { return next(error); }
 });
 
 function parseUpload(req, res, next) {
@@ -51,7 +61,7 @@ bulkRegistrationRouter.post('/preview', parseUpload, async (req, res, next) => {
 bulkRegistrationRouter.post('/commit', parseUpload, async (req, res, next) => {
   try {
     requireFile(req);
-    const result = await commitBulkRegistration({ buffer: req.file.buffer, schoolId: req.schoolId });
+    const result = await commitBulkRegistration({ buffer: req.file.buffer, schoolId: req.schoolId, adminId: req.user.id });
     return success(res, result, 'All records imported successfully', 201);
   } catch (error) { return next(error); }
 });

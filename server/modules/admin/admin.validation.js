@@ -6,7 +6,6 @@ export const createSchoolUserSchema = z.object({
   body: z.object({
     name: z.string().trim().min(2).max(100),
     email: z.string().trim().email().max(254).transform((value) => value.toLowerCase()),
-    password: z.string().min(12).max(128),
     role: z.enum(['driver', 'parent']),
     phone: z.string().trim().max(20).optional()
   }).strict()
@@ -38,4 +37,10 @@ export const updateStudentParentsSchema = z.object({
   body: z.object({
     parentEmails: z.array(z.string().trim().email().max(254).transform((value) => value.toLowerCase())).min(1).max(5)
   }).strict()
+});
+
+export const resendActivationSchema = z.object({
+  params: z.object({ userId: z.string().regex(/^[a-f\d]{24}$/i, 'Must be a valid ID') }),
+  query: z.object({}).passthrough(),
+  body: z.object({}).strict()
 });
