@@ -2,6 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { api, setAccessToken, setAuthFailureHandler } from './api.js';
 
+test('API client uses Fetch no-store mode to bypass browser HTTP cache validation', () => {
+  assert.deepEqual(api.defaults.adapter, ['fetch', 'xhr', 'http']);
+  assert.equal(api.defaults.fetchOptions.cache, 'no-store');
+});
+
 function mockStatus(t, status) {
   const originalAdapter = api.defaults.adapter;
   api.defaults.adapter = async (config) => {

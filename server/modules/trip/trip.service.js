@@ -7,6 +7,9 @@ import User from '../auth/User.model.js';
 import Student from '../student/student.model.js';
 import { emitTripStatusUpdate } from '../../src/sockets/socketServer.js';
 import { AppError } from '../../src/utils/AppError.js';
+import { getServiceDate } from './serviceDate.js';
+
+const TRIP_TYPES = ['morning_pickup', 'afternoon_dropoff'];
 
 // -----------------------------------------------------------------------------
 // Shared helper functions
@@ -32,6 +35,8 @@ function serializeTrip(trip) {
     schoolId: String(trip.schoolId),
     vanId: String(trip.vanId),
     driverId: String(trip.driverId),
+    tripType: trip.tripType ?? null,
+    serviceDate: trip.serviceDate ?? null,
     status: trip.status,
     startedAt: trip.startedAt.toISOString(),
     endedAt: trip.endedAt
@@ -52,8 +57,12 @@ function isDuplicateKeyError(error) {
 // Start a trip
 // -----------------------------------------------------------------------------
 
-export async function startTrip({ vanId, driverId, schoolId }) {
+export async function startTrip({ vanId, tripType, driverId, schoolId }) {
   requireSchoolId(schoolId);
+
+  if (!TRIP_TYPES.includes(tripType)) {
+    throw new AppError(400, 'INVALID_TRIP_TYPE', 'A valid trip type is required');
+  }
 
   // A driver can only start a trip using an active van assigned to them
   // and belonging to their own school.
@@ -90,13 +99,32 @@ export async function startTrip({ vanId, driverId, schoolId }) {
     );
   }
 
+  const startedAt = new Date();
+  const serviceDate = getServiceDate(startedAt);
+  const sameTypeTrip = await Trip.exists({
+    schoolId,
+    vanId: van._id,
+    serviceDate,
+    tripType
+  });
+
+  if (sameTypeTrip) {
+    throw new AppError(
+      409,
+      'TRIP_ALREADY_EXISTS',
+      'A trip of this type already exists for this van and service date'
+    );
+  }
+
   try {
     const trip = await Trip.create({
       schoolId: van.schoolId,
       vanId: van._id,
       driverId,
+      tripType,
+      serviceDate,
       status: 'active',
-      startedAt: new Date(),
+      startedAt,
       endedAt: null
     });
 
@@ -105,6 +133,16 @@ export async function startTrip({ vanId, driverId, schoolId }) {
     // Database indexes protect against two requests starting
     // conflicting trips at almost exactly the same time.
     if (isDuplicateKeyError(error)) {
+      const dailyDuplicate = error.keyPattern?.serviceDate || error.keyPattern?.tripType
+        ? true
+        : Boolean(await Trip.exists({ schoolId, vanId: van._id, serviceDate, tripType }));
+      if (dailyDuplicate) {
+        throw new AppError(
+          409,
+          'TRIP_ALREADY_EXISTS',
+          'A trip of this type already exists for this van and service date'
+        );
+      }
       throw new AppError(
         409,
         'ACTIVE_TRIP_EXISTS',
@@ -258,7 +296,7 @@ export async function getLatestTripLocation({
     schoolId: authorizedSchoolId,
     status: 'active'
   })
-    .select('_id schoolId vanId driverId status startedAt')
+    .select('_id schoolId vanId driverId tripType serviceDate status startedAt')
     .lean();
 
   if (!trip) {
@@ -357,7 +395,9 @@ export async function getLatestTripLocation({
     trip: {
       id: String(trip._id),
       status: trip.status,
-      startedAt: trip.startedAt.toISOString()
+      startedAt: trip.startedAt.toISOString(),
+      tripType: trip.tripType ?? null,
+      serviceDate: trip.serviceDate ?? null
     },
 
     van: {
@@ -483,7 +523,9 @@ export async function getSchoolActiveTripLocations({ schoolId }) {
       trip: {
         id: String(trip._id),
         status: trip.status,
-        startedAt: trip.startedAt.toISOString()
+        startedAt: trip.startedAt.toISOString(),
+        tripType: trip.tripType ?? null,
+        serviceDate: trip.serviceDate ?? null
       },
 
       van: van

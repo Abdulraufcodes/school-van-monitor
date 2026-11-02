@@ -20,8 +20,8 @@ const OTP_EXPIRY_MS = 5 * 60 * 1000;
 const OTP_RESEND_COOLDOWN_MS = 60 * 1000;
 const MAX_OTP_ATTEMPTS = 3;
 
-// Verify the driver's active trip and the student's assignment.
-async function getPickupContext({ tripId, studentId, driverId, schoolId }) {
+// Verify the driver's active trip type and the student's assignment.
+async function getPickupContext({ tripId, studentId, driverId, schoolId, tripType }) {
     const trip = await Trip.findOne({
         _id: tripId,
         driverId,
@@ -32,6 +32,14 @@ async function getPickupContext({ tripId, studentId, driverId, schoolId }) {
     if (!trip) {
         throw new AppError(404, 'ACTIVE_TRIP_NOT_FOUND', 'Active trip not found');
     }
+
+  if (trip.tripType !== tripType || !trip.serviceDate) {
+    throw new AppError(
+      409,
+      'TRIP_TYPE_MISMATCH',
+      `This action requires an active ${tripType} trip`
+    );
+  }
 
     const van = await Van.findOne({
         _id: trip.vanId,
@@ -60,6 +68,40 @@ async function getPickupContext({ tripId, studentId, driverId, schoolId }) {
     }
 
     return { trip, van, student };
+}
+
+async function hasVerifiedMorningPickup({ trip, van, student }) {
+  const pickupEvents = await StudentEvent.find({
+    schoolId: trip.schoolId,
+    vanId: van._id,
+    studentId: student._id,
+    serviceDate: trip.serviceDate,
+    type: 'picked_up'
+  }).select('tripId').lean();
+
+  for (const pickupEvent of pickupEvents) {
+    const morningTrip = await Trip.findOne({
+      _id: pickupEvent.tripId,
+      schoolId: trip.schoolId,
+      vanId: van._id,
+      serviceDate: trip.serviceDate,
+      tripType: 'morning_pickup'
+    }).select('_id').lean();
+
+    if (morningTrip) return true;
+  }
+
+  return false;
+}
+
+async function requireVerifiedMorningPickup(context) {
+  if (!await hasVerifiedMorningPickup(context)) {
+    throw new AppError(
+      409,
+      'STUDENT_NOT_PICKED_UP',
+      'Student must have a verified morning pickup for this van and service date'
+    );
+  }
 }
 
 export async function getTripStudentStatuses({
@@ -108,13 +150,24 @@ export async function getTripStudentStatuses({
 
     const studentIds = students.map(student => student._id);
 
+    let eventTripIds = [trip._id];
+    if (trip.tripType === 'afternoon_dropoff' && trip.serviceDate) {
+        const morningTrip = await Trip.findOne({
+            schoolId,
+            vanId: van._id,
+            serviceDate: trip.serviceDate,
+            tripType: 'morning_pickup'
+        }).select('_id').lean();
+        if (morningTrip) eventTripIds.unshift(morningTrip._id);
+    }
+
     const events = studentIds.length
         ? await StudentEvent.find({
             schoolId,
-            tripId: trip._id,
+            tripId: { $in: eventTripIds },
             studentId: { $in: studentIds }
         })
-            .select('studentId type occurredAt')
+            .select('studentId tripId type occurredAt')
             .lean()
         : [];
 
@@ -141,6 +194,8 @@ export async function getTripStudentStatuses({
     return {
         tripId: String(trip._id),
         vanId: String(van._id),
+        tripType: trip.tripType ?? null,
+        serviceDate: trip.serviceDate ?? null,
         totalStudents: students.length,
         students: students.map(student => {
             const status = eventMap.get(String(student._id)) ?? {};
@@ -221,25 +276,44 @@ export async function getStudentTripStatus({
         );
     }
 
-    // Retrieve both events for this student and trip.
+    let pickupTripId = trip._id;
+    let dropoffTripId = trip._id;
+    if (trip.tripType && trip.serviceDate) {
+        const counterpartType = trip.tripType === 'morning_pickup' ? 'afternoon_dropoff' : 'morning_pickup';
+        const counterpartTrip = await Trip.findOne({
+            schoolId,
+            vanId: trip.vanId,
+            serviceDate: trip.serviceDate,
+            tripType: counterpartType
+        }).select('_id').lean();
+
+        if (trip.tripType === 'morning_pickup') {
+            dropoffTripId = counterpartTrip?._id;
+        } else {
+            pickupTripId = counterpartTrip?._id;
+        }
+    }
+
+    const eventTripIds = [pickupTripId, dropoffTripId].filter(Boolean);
     const events = await StudentEvent.find({
         schoolId,
-        tripId: trip._id,
+        tripId: { $in: eventTripIds },
         studentId: student._id
     })
-        .select('type occurredAt')
+        .select('tripId type occurredAt')
         .lean();
 
-    const pickupEvent = events.find(
-        event => event.type === 'picked_up'
+    const pickupEvent = events.find((event) =>
+        event.type === 'picked_up' && String(event.tripId) === String(pickupTripId)
     );
-
-    const dropoffEvent = events.find(
-        event => event.type === 'dropped_off'
+    const dropoffEvent = events.find((event) =>
+        event.type === 'dropped_off' && String(event.tripId) === String(dropoffTripId)
     );
 
     return {
         tripId: String(trip._id),
+        tripType: trip.tripType ?? null,
+        serviceDate: trip.serviceDate ?? null,
         student: {
             id: String(student._id),
             name: student.name,
@@ -268,13 +342,15 @@ export async function requestPickupOtp({
         tripId,
         studentId,
         driverId,
-        schoolId
+        schoolId,
+        tripType: 'morning_pickup'
     });
 
     // A student cannot be picked up twice on the same trip.
     const existingEvent = await StudentEvent.exists({
-        tripId: trip._id,
+        schoolId,
         studentId: student._id,
+        serviceDate: trip.serviceDate,
         type: 'picked_up'
     });
 
@@ -408,7 +484,8 @@ export async function verifyPickupOtpAndRecord({
         tripId,
         studentId,
         driverId,
-        schoolId
+        schoolId,
+        tripType: 'morning_pickup'
     });
 
     const otpRecord = await PickupOtp.findOne({
@@ -468,6 +545,7 @@ export async function verifyPickupOtpAndRecord({
             schoolId,
             studentId: student._id,
             tripId: trip._id,
+            serviceDate: trip.serviceDate,
             vanId: van._id,
             driverId,
             type: 'picked_up',
@@ -523,32 +601,21 @@ export async function requestDropoffOtp({
     schoolId,
     sendEmail = sendPickupOtpEmail
 }) {
-    const { trip, student } = await getPickupContext({
+    const { trip, van, student } = await getPickupContext({
         tripId,
         studentId,
         driverId,
-        schoolId
+        schoolId,
+        tripType: 'afternoon_dropoff'
     });
 
-    // A student must have boarded this van before they can be dropped off.
-    const pickupEvent = await StudentEvent.exists({
-        tripId: trip._id,
-        studentId: student._id,
-        type: 'picked_up'
-    });
-
-    if (!pickupEvent) {
-        throw new AppError(
-            409,
-            'STUDENT_NOT_PICKED_UP',
-            'Student must be picked up before drop-off'
-        );
-    }
+    await requireVerifiedMorningPickup({ trip, van, student });
 
     // Prevent a second drop-off for the same student on this trip.
     const existingDropoff = await StudentEvent.exists({
-        tripId: trip._id,
+        schoolId,
         studentId: student._id,
+        serviceDate: trip.serviceDate,
         type: 'dropped_off'
     });
 
@@ -677,27 +744,16 @@ export async function verifyDropoffOtpAndRecord({
         tripId,
         studentId,
         driverId,
-        schoolId
+        schoolId,
+        tripType: 'afternoon_dropoff'
     });
 
-    // Recheck the pickup prerequisite at verification time.
-    const pickupEvent = await StudentEvent.exists({
-        tripId: trip._id,
-        studentId: student._id,
-        type: 'picked_up'
-    });
-
-    if (!pickupEvent) {
-        throw new AppError(
-            409,
-            'STUDENT_NOT_PICKED_UP',
-            'Student must be picked up before drop-off'
-        );
-    }
+    await requireVerifiedMorningPickup({ trip, van, student });
 
     const existingDropoff = await StudentEvent.exists({
-        tripId: trip._id,
+        schoolId,
         studentId: student._id,
+        serviceDate: trip.serviceDate,
         type: 'dropped_off'
     });
 
@@ -781,6 +837,7 @@ export async function verifyDropoffOtpAndRecord({
             schoolId,
             studentId: student._id,
             tripId: trip._id,
+            serviceDate: trip.serviceDate,
             vanId: van._id,
             driverId,
             type: 'dropped_off',

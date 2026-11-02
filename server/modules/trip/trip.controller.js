@@ -13,6 +13,7 @@ export async function startTripController(req, res, next) {
   try {
     const trip = await startTrip({
       vanId: req.validated.body.vanId,
+      tripType: req.validated.body.tripType,
       driverId: req.user.id,
       schoolId: req.user.schoolId
     });
