@@ -4,7 +4,7 @@ import { authorize } from '../../src/middleware/authorize.js';
 import { requireAdminSchool } from '../../src/middleware/requireAdminSchool.js';
 import { validate } from '../../src/middleware/validate.js';
 import { createSchoolStudentController, createSchoolUserController, getPickupAlertSettingsController, listSchoolPeopleController, resendActivationController, updatePickupAlertSettingsController, updateSchoolStudentStatusController, updateSchoolUserStatusController, updateStudentParentsController, updateStudentPickupLocationController } from './admin.controller.js';
-import { createSchoolUserSchema, createStudentSchema, pickupAlertSettingsSchema, resendActivationSchema, updateSchoolStudentStatusSchema, updateSchoolUserStatusSchema, updateStudentParentsSchema, updateStudentPickupLocationSchema } from './admin.validation.js';
+import { createSchoolUserSchema, createStudentSchema, pickupAlertSettingsSchema, resendActivationSchema, updateStudentStatusSchema, updateSchoolUserStatusSchema, updateStudentParentsSchema, updateStudentPickupLocationSchema } from './admin.validation.js';
 
 export const adminRouter = Router();
 adminRouter.use(authenticate, authorize('admin'), requireAdminSchool);
