@@ -10,6 +10,11 @@ export async function createSchoolUser(payload) {
   return response.data?.data;
 }
 
+export async function resendSchoolUserActivation(userId) {
+  const response = await api.post(`/admin/users/${encodeURIComponent(userId)}/resend-activation`);
+  return response.data?.data;
+}
+
 export async function createSchoolStudent(payload) {
   const response = await api.post('/admin/students', payload);
   return response.data?.data;

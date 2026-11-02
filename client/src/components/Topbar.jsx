@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 export function Topbar({ title, user, roleLabel, collapsed, onToggleSidebar, onSignOut }) {
   const initial = user?.name?.trim()?.charAt(0)?.toUpperCase() || roleLabel?.charAt(0) || 'U';
 
@@ -14,6 +16,7 @@ export function Topbar({ title, user, roleLabel, collapsed, onToggleSidebar, onS
       </div>
 
       <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+        <Link to="/account/password" className="rounded-xl px-2 py-2 text-xs font-semibold text-cyan-800 hover:bg-cyan-50 sm:px-3 sm:text-sm">Change password</Link>
         <div className="hidden min-w-0 text-right sm:block"><p className="max-w-40 truncate text-sm font-semibold text-slate-800">{user?.name || 'User'}</p><p className="text-xs text-slate-500">{roleLabel}</p></div>
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-cyan-100 text-sm font-semibold text-cyan-900 sm:hidden" aria-hidden="true">{initial}</span>
         <button type="button" onClick={onSignOut} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-cyan-600 sm:px-4 sm:text-sm">Sign out</button>

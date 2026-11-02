@@ -1,8 +1,14 @@
 import { success } from '../../src/utils/response.js';
 import { createSchoolStudent, createSchoolUser, listSchoolPeople, updateSchoolStudentPickupLocation, updateStudentParents } from './admin.service.js';
+import { resendActivation } from '../auth/accountAccess.service.js';
 
 export async function listSchoolPeopleController(req, res, next) {
   try { return success(res, await listSchoolPeople(req.schoolId), 'School people retrieved successfully'); }
+  catch (error) { return next(error); }
+}
+
+export async function resendActivationController(req, res, next) {
+  try { return success(res, await resendActivation(req.validated.params.userId, req.schoolId), 'Activation email sent'); }
   catch (error) { return next(error); }
 }
 

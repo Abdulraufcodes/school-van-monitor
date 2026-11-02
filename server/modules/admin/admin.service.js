@@ -1,25 +1,30 @@
+import { randomBytes } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
 import User from '../auth/User.model.js';
 import Student from '../student/student.model.js';
 import { AppError } from '../../src/utils/AppError.js';
+import { issueAccountLink } from '../auth/accountAccess.service.js';
 
 export async function listSchoolPeople(schoolId) {
   const [users, students] = await Promise.all([
-    User.find({ schoolId, role: { $in: ['driver', 'parent'] } }).select('_id name email phone role isActive createdAt').sort({ role: 1, name: 1 }).lean(),
+    User.find({ schoolId, role: { $in: ['driver', 'parent'] } }).select('_id name email phone role isActive accountStatus createdAt').sort({ role: 1, name: 1 }).lean(),
     Student.find({ schoolId }).select('_id name className parentIds pickupLocation isActive createdAt').populate({ path: 'parentIds', select: 'name email' }).sort({ name: 1 }).lean()
   ]);
   return { users, students };
 }
 
-export async function createSchoolUser({ schoolId, name, email, password, role, phone }) {
+export async function createSchoolUser({ schoolId, name, email, role, phone }) {
   if (await User.exists({ email })) {
     throw new AppError(409, 'EMAIL_ALREADY_EXISTS', 'An account with this email already exists');
   }
-  const passwordHash = await bcrypt.hash(password, 12);
   try {
-    const user = await User.create({ schoolId, name, email, passwordHash, role, phone });
-    return { id: String(user._id), name: user.name, email: user.email, phone: user.phone || '', role: user.role, isActive: user.isActive };
+    const user = await User.create({ schoolId, name, email, passwordHash: await bcrypt.hash(randomBytes(48).toString('base64url'), 12), role, phone, accountStatus: 'pending_activation' });
+    let invitationStatus = 'sent';
+    let activationExpiresAt;
+    try { ({ expiresAt: activationExpiresAt } = await issueAccountLink(user, 'activation')); }
+    catch { invitationStatus = 'pending_delivery'; }
+    return { id: String(user._id), name: user.name, email: user.email, phone: user.phone || '', role: user.role, isActive: user.isActive, accountStatus: user.accountStatus, invitationStatus, activationExpiresAt };
   } catch (error) {
     if (error?.code === 11000) throw new AppError(409, 'EMAIL_ALREADY_EXISTS', 'An account with this email already exists');
     throw error;

@@ -50,7 +50,7 @@ export async function authenticate(req, _res, next) {
 
   try {
     const user = await User.findById(payload.sub)
-      .select('name email role schoolId isActive');
+      .select('name email role schoolId isActive accountStatus passwordChangedAt');
 
     if (!user || !user.isActive) {
       return next(
@@ -60,6 +60,10 @@ export async function authenticate(req, _res, next) {
           'User account is unavailable'
         )
       );
+    }
+
+    if (user.accountStatus === 'pending_activation' || (user.passwordChangedAt && payload.iat * 1000 < user.passwordChangedAt.getTime() - 1000)) {
+      return next(new AppError(401, 'UNAUTHENTICATED', 'Account session is no longer valid'));
     }
 
     req.user = {
