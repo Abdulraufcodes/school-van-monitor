@@ -231,3 +231,28 @@ test('parent trip location includes trip type and service date', async (t) => {
   assert.equal(result.trip.tripType, 'afternoon_dropoff');
   assert.equal(result.trip.serviceDate, '2026-01-02');
 });
+
+test('admin active locations expose the newest saved GPS point for a trip', async (t) => {
+  const recordedAt = new Date('2026-11-05T04:00:00.000Z');
+  const receivedAt = new Date('2026-11-05T04:00:01.000Z');
+  t.mock.method(Trip, 'find', () => ({ sort() { return this; }, lean: async () => [makeTrip()] }));
+  t.mock.method(Van, 'find', () => ({ select() { return this; }, lean: async () => [
+    { _id: vanId, registrationNumber: 'CG-DEMO-001', isActive: true }
+  ] }));
+  t.mock.method(User, 'find', () => ({ select() { return this; }, lean: async () => [
+    { _id: driverId, name: 'Demo Driver', isActive: true }
+  ] }));
+  t.mock.method(LocationUpdate, 'find', () => ({ sort() { return this; }, lean: async () => [
+    { tripId, latitude: 22.3085, longitude: 73.1827, recordedAt, receivedAt }
+  ] }));
+
+  const [item] = await getSchoolActiveTripLocations({ schoolId });
+  assert.deepEqual(item.location, {
+    latitude: 22.3085,
+    longitude: 73.1827,
+    recordedAt: recordedAt.toISOString(),
+    receivedAt: receivedAt.toISOString(),
+    ageInSeconds: 0,
+    isStale: false
+  });
+});
